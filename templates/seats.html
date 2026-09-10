@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Select Seats - {{ show.movie.title if show.movie else 'CineTickets' }}{% endblock %}
+
+{% block content %}
+<div class="section-header" style="margin-bottom: 0.5rem;">
+    <div>
+        <a href="javascript:history.back()" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem; display: inline-block;"><i class="fa-solid fa-arrow-left"></i> Back</a>
+        <h1 class="section-title" style="font-size: 1.8rem;">Select Seats</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">
+            <strong>{{ show.movie.title if show.movie else 'Movie' }}</strong> • 
+            {{ show.theatre.name if show.theatre else 'Cinema' }} • 
+            {{ show.date }} • {{ show.time }}
+        </p>
+    </div>
+</div>
+
+<!-- Seat Legend -->
+<div class="seat-legend">
+    <div class="legend-item"><div class="seat-box available"></div> Available</div>
+    <div class="legend-item"><div class="seat-box selected"></div> Selected</div>
+    <div class="legend-item"><div class="seat-box booked"></div> Booked</div>
+</div>
+
+<!-- Cinema Screen Indicator -->
+<div class="screen-indicator">SCREEN THIS WAY</div>
+
+<!-- Cinema Seat Grid -->
+<div class="seats-grid-container">
+    {% set rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] %}
+    {% for r in rows %}
+    <div class="seat-row">
+        <span class="row-label">{{ r }}</span>
+        {% for s in seats %}
+            {% if s.row == r %}
+                <div class="seat {% if s.status == 'booked' %}booked{% endif %}" 
+                     data-seat-number="{{ s.seat_number }}" 
+                     data-price="{{ s.price }}" 
+                     title="Seat {{ s.seat_number }} (₹{{ s.price }})">
+                    {{ s.number }}
+                </div>
+            {% endif %}
+        {% endfor %}
+        <span class="row-label">{{ r }}</span>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Sticky Bottom Booking Bar -->
+<div class="booking-bar">
+    <div>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">Selected Seats:</p>
+        <span id="selected-seats-display" style="font-size: 1.1rem; font-weight: 700; color: var(--text-white);">None</span>
+    </div>
+    <div style="text-align: right;">
+        <p style="font-size: 0.8rem; color: var(--text-muted);">Total Amount:</p>
+        <span id="selected-total-display" style="font-size: 1.4rem; font-weight: 800; color: var(--primary-red);">₹0.00</span>
+    </div>
+    <button id="continue-to-food-btn" class="btn-primary" style="padding: 0.8rem 2rem; opacity: 0.5;" disabled onclick="proceedToFoodOrPayment('{{ show.id or show._id }}')">
+        Continue <i class="fa-solid fa-arrow-right"></i>
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/seats.js') }}"></script>
+{% endblock %}

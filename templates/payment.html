@@ -1,0 +1,348 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment - CineTickets{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Expand / Collapse & Pulse Animations */
+.payment-option-card {
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: var(--transition);
+    margin-bottom: 1.25rem;
+}
+
+.payment-option-card:hover {
+    border-color: rgba(229, 30, 42, 0.4);
+}
+
+.payment-option-card.active {
+    border-color: var(--primary-red);
+    background: rgba(229, 30, 42, 0.04);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.payment-details-box {
+    overflow: hidden;
+    transition: max-height 0.35s ease-in-out, opacity 0.3s ease-in-out, margin-top 0.3s ease-in-out;
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+}
+
+.payment-option-card.active .payment-details-box {
+    max-height: 600px;
+    opacity: 1;
+    margin-top: 1.25rem;
+}
+
+@keyframes pulse-dot {
+    0% { opacity: 0.3; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.2); }
+    100% { opacity: 0.3; transform: scale(0.9); }
+}
+
+.pulse-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #10B981;
+    margin-right: 6px;
+    animation: pulse-dot 1.6s infinite ease-in-out;
+}
+
+.qr-wrapper-card {
+    background: #0D0F15;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.75rem 1.5rem;
+    text-align: center;
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+.qr-code-display {
+    width: 210px;
+    height: 210px;
+    background: #FFFFFF;
+    padding: 10px;
+    border-radius: 12px;
+    margin: 1rem auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qr-code-display img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <div>
+        <a href="javascript:history.back()" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem; display: inline-block;"><i class="fa-solid fa-arrow-left"></i> Back to Summary</a>
+        <h1 class="section-title" style="font-size: 1.8rem;">SELECT PAYMENT METHOD</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Choose your preferred payment method to complete ticket booking</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;" class="payment-grid-layout">
+    <!-- Left Column: Payment Options -->
+    <div style="background: var(--bg-card); padding: 2rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); box-shadow: var(--shadow-card);">
+        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 1.25rem; color: var(--text-white);">Payment Options</h3>
+
+        <!-- 1. UPI Payment Option Card (Selected by Default) -->
+        <div id="card-option-upi" class="payment-option-card active" onclick="selectPaymentMethod('UPI')">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <input type="radio" name="payment_method_radio" value="UPI" id="radio-upi" checked style="accent-color: var(--primary-red); width: 18px; height: 18px; cursor: pointer;">
+                    <i class="fa-solid fa-qrcode" style="font-size: 1.6rem; color: var(--primary-red);"></i>
+                    <div>
+                        <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-white); margin: 0;">UPI (Google Pay / PhonePe / Paytm)</h4>
+                        <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.2rem;">Scan &amp; Pay instantly using any UPI App</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.4rem; align-items: center;">
+                    <span class="badge" style="background: rgba(229,30,42,0.15); color: var(--primary-red); border: 1px solid rgba(229,30,42,0.3); font-size: 0.72rem;">RECOMMENDED</span>
+                </div>
+            </div>
+
+            <!-- Dynamic Scan & Pay QR Section -->
+            <div class="payment-details-box" onclick="event.stopPropagation()">
+                <div class="qr-wrapper-card">
+                    <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-white); margin-bottom: 0.25rem;">Scan &amp; Pay</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Scan this QR code using Google Pay, PhonePe or Paytm</p>
+                    
+                    <!-- QR Code Image -->
+                    <div class="qr-code-display">
+                        <img id="dynamic-upi-qr" src="" alt="CineTickets UPI Payment QR Code">
+                    </div>
+
+                    <div style="background: rgba(229, 30, 42, 0.1); border: 1px solid rgba(229, 30, 42, 0.25); padding: 0.6rem 1rem; border-radius: var(--radius-md); display: inline-block; margin-bottom: 0.8rem;">
+                        <span style="font-size: 0.95rem; font-weight: 800; color: var(--text-white);" id="qr-payable-amount">Payable Amount: ₹0.00</span>
+                    </div>
+
+                    <div style="font-size: 0.82rem; color: #10B981; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                        <span class="pulse-indicator"></span> Waiting for payment confirmation...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Credit / Debit Card Option Card -->
+        <div id="card-option-card" class="payment-option-card" onclick="selectPaymentMethod('Card')">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <input type="radio" name="payment_method_radio" value="Card" id="radio-card" style="accent-color: var(--primary-red); width: 18px; height: 18px; cursor: pointer;">
+                    <i class="fa-solid fa-credit-card" style="font-size: 1.5rem; color: #10B981;"></i>
+                    <div>
+                        <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-white); margin: 0;">Credit / Debit Card</h4>
+                        <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.2rem;">Visa, MasterCard, RuPay</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Input Form -->
+            <div class="payment-details-box" onclick="event.stopPropagation()">
+                <div style="background: var(--bg-input); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+                    
+                    <div class="form-group" style="margin-bottom: 1.2rem;">
+                        <label class="form-label">Card Number</label>
+                        <div style="position: relative;">
+                            <input type="text" id="card-number-input" class="form-control" placeholder="4532 1234 5678 9012" maxlength="19" oninput="formatCardNumber(this)">
+                            <i class="fa-solid fa-credit-card" style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1.2rem;">
+                        <label class="form-label">Cardholder Name</label>
+                        <input type="text" id="card-name-input" class="form-control" placeholder="Enter name as printed on card">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Expiry Date</label>
+                            <input type="text" id="card-expiry-input" class="form-control" placeholder="MM/YY" maxlength="5" oninput="formatExpiry(this)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CVV</label>
+                            <input type="password" id="card-cvv-input" class="form-control" placeholder="123" maxlength="4">
+                        </div>
+                    </div>
+
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.8rem; display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="fa-solid fa-lock" style="color: #10B981;"></i> Safe Demo Mode: Card details are validated locally and never stored in database.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit Payment Button -->
+        <button id="pay-submit-btn" class="btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem; font-weight: 800; border-radius: var(--radius-lg); margin-top: 1rem; box-shadow: 0 6px 20px rgba(229, 30, 42, 0.4);" onclick="handlePaymentSubmit()">
+            CONFIRM UPI PAYMENT – ₹0.00
+        </button>
+    </div>
+
+    <!-- Right Column: Sidebar Order Summary -->
+    <div style="background: var(--bg-card); padding: 1.75rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); height: fit-content; box-shadow: var(--shadow-card);">
+        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 1.25rem; color: var(--text-white); border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">Booking Details</h3>
+        
+        <!-- Movie & Show Details -->
+        <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.25rem;">
+            <h4 style="font-size: 1.1rem; font-weight: 800; color: var(--text-white); margin-bottom: 0.3rem;">
+                {{ show.movie.title if show and show.movie else 'Movie Title' }}
+            </h4>
+            <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+                <i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> 
+                <strong>{{ show.theatre.name if show and show.theatre else 'Cinema Theatre' }}</strong>
+            </p>
+            <p style="font-size: 0.82rem; color: var(--text-muted);">
+                <i class="fa-regular fa-calendar" style="color: var(--primary-red);"></i> {{ show.date if show else 'Today' }} • 
+                <i class="fa-regular fa-clock" style="color: var(--primary-red);"></i> {{ show.time if show else 'Showtime' }} ({{ show.screen if show else 'Screen 1' }})
+            </p>
+        </div>
+
+        <!-- Price breakdown -->
+        <div style="font-size: 0.92rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.75rem;">
+            <div style="display: flex; justify-content: space-between;">
+                <span>Selected Seats:</span>
+                <span id="payment-seats" style="color: var(--primary-red); font-weight: 800;">-</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Ticket Price:</span>
+                <span id="summary-tickets" style="color: var(--text-white); font-weight: 600;">₹0.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Convenience Fee:</span>
+                <span style="color: var(--text-white); font-weight: 600;">₹30.00</span>
+            </div>
+            
+            <div style="border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--text-white); font-weight: 800; font-size: 1.1rem;">Total Amount:</span>
+                <span id="summary-total" style="color: var(--primary-red); font-weight: 900; font-size: 1.3rem;">₹0.00</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/booking.js') }}"></script>
+<script>
+let currentSelectedMethod = 'UPI';
+let currentGrandTotal = 0.0;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const selectedSeats = JSON.parse(sessionStorage.getItem('selected_seats') || '[]');
+    const ticketTotal = parseFloat(sessionStorage.getItem('ticket_total') || 0);
+    const fee = 30.0;
+    currentGrandTotal = ticketTotal + fee;
+
+    document.getElementById('payment-seats').innerText = selectedSeats.join(', ') || 'None';
+    document.getElementById('summary-tickets').innerText = `₹${ticketTotal.toFixed(2)}`;
+    document.getElementById('summary-total').innerText = `₹${currentGrandTotal.toFixed(2)}`;
+    document.getElementById('qr-payable-amount').innerText = `Payable Amount: ₹${currentGrandTotal.toFixed(2)}`;
+
+    // Generate dynamic QR code URL encoding UPI payment standard
+    const refId = `CT${Date.now()}`;
+    const upiUri = `upi://pay?pa=cinetickets@upi&pn=CineTickets&am=${currentGrandTotal.toFixed(2)}&cu=INR&tr=${refId}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiUri)}`;
+    
+    const qrImg = document.getElementById('dynamic-upi-qr');
+    if (qrImg) {
+        qrImg.src = qrUrl;
+    }
+
+    updatePaymentButton();
+});
+
+function selectPaymentMethod(method) {
+    currentSelectedMethod = method;
+
+    const upiCard = document.getElementById('card-option-upi');
+    const cardCard = document.getElementById('card-option-card');
+    const upiRadio = document.getElementById('radio-upi');
+    const cardRadio = document.getElementById('radio-card');
+
+    if (method === 'UPI') {
+        upiCard.classList.add('active');
+        cardCard.classList.remove('active');
+        upiRadio.checked = true;
+    } else {
+        cardCard.classList.add('active');
+        upiCard.classList.remove('active');
+        cardRadio.checked = true;
+    }
+
+    updatePaymentButton();
+}
+
+function updatePaymentButton() {
+    const payBtn = document.getElementById('pay-submit-btn');
+    if (!payBtn) return;
+
+    if (currentSelectedMethod === 'UPI') {
+        payBtn.innerText = `CONFIRM UPI PAYMENT – ₹${currentGrandTotal.toFixed(2)}`;
+    } else {
+        payBtn.innerText = `PAY ₹${currentGrandTotal.toFixed(2)}`;
+    }
+}
+
+function formatCardNumber(input) {
+    let val = input.value.replace(/\D/g, '');
+    val = val.substring(0, 16);
+    let formatted = val.match(/.{1,4}/g)?.join(' ') || val;
+    input.value = formatted;
+}
+
+function formatExpiry(input) {
+    let val = input.value.replace(/\D/g, '');
+    if (val.length >= 2) {
+        val = val.substring(0, 2) + '/' + val.substring(2, 4);
+    }
+    input.value = val;
+}
+
+function handlePaymentSubmit() {
+    if (currentSelectedMethod === 'Card') {
+        const num = document.getElementById('card-number-input').value.replace(/\s/g, '');
+        const name = document.getElementById('card-name-input').value.trim();
+        const exp = document.getElementById('card-expiry-input').value.trim();
+        const cvv = document.getElementById('card-cvv-input').value.trim();
+
+        if (num.length < 16) {
+            if (typeof showToast === 'function') showToast('Please enter a valid 16-digit card number.', 'danger');
+            else alert('Please enter a valid 16-digit card number.');
+            return;
+        }
+        if (!name) {
+            if (typeof showToast === 'function') showToast('Please enter cardholder name.', 'danger');
+            else alert('Please enter cardholder name.');
+            return;
+        }
+        if (exp.length < 5 || !exp.includes('/')) {
+            if (typeof showToast === 'function') showToast('Please enter valid expiry date (MM/YY).', 'danger');
+            else alert('Please enter valid expiry date (MM/YY).');
+            return;
+        }
+        if (cvv.length < 3) {
+            if (typeof showToast === 'function') showToast('Please enter a valid 3-digit CVV.', 'danger');
+            else alert('Please enter a valid 3-digit CVV.');
+            return;
+        }
+    }
+
+    // Call submitFinalBooking from booking.js
+    submitFinalBooking(currentSelectedMethod);
+}
+</script>
+{% endblock %}

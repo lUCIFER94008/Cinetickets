@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}User Profile - CineTickets{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <div>
+        <h1 class="section-title" style="font-size: 2rem;">Account Profile</h1>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Manage your personal profile and account settings</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+    <!-- Profile Card -->
+    <div style="background: var(--bg-card); padding: 2rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); text-align: center; height: fit-content;">
+        <div style="width: 80px; height: 80px; background: var(--primary-red); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; margin: 0 auto 1rem; font-weight: 800;">
+            {{ user.name[0]|upper if user.name else 'U' }}
+        </div>
+        <h3 style="font-size: 1.25rem; font-weight: 800;">{{ user.name }}</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">{{ user.email }}</p>
+        <span class="badge" style="background: rgba(229, 30, 42, 0.2); color: var(--primary-red); border: 1px solid var(--primary-red);">{{ user.role|upper if user.role else 'USER' }}</span>
+    </div>
+
+    <!-- Edit Forms -->
+    <div style="display: flex; flex-direction: column; gap: 2rem;">
+        <!-- Update Info -->
+        <div style="background: var(--bg-card); padding: 2rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color);">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 1.25rem;">Personal Details</h3>
+            <form id="profile-update-form">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" id="prof-name" class="form-control" value="{{ user.name }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone Number</label>
+                    <input type="tel" id="prof-phone" class="form-control" value="{{ user.phone }}" required>
+                </div>
+                <button type="button" onclick="updateUserProfile()" class="btn-primary">Save Profile Changes</button>
+            </form>
+        </div>
+
+        <!-- Change Password -->
+        <div style="background: var(--bg-card); padding: 2rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color);">
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 1.25rem;">Security &amp; Password</h3>
+            <form id="password-change-form">
+                <div class="form-group">
+                    <label class="form-label">Current Password</label>
+                    <input type="password" id="old-pass" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New Password</label>
+                    <input type="password" id="new-pass" class="form-control" required>
+                </div>
+                <button type="button" onclick="changeUserPassword()" class="btn-secondary">Update Password</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function updateUserProfile() {
+    const name = document.getElementById('prof-name').value;
+    const phone = document.getElementById('prof-phone').value;
+    try {
+        const res = await fetch('/api/profile/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, phone: phone })
+        });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'danger');
+    } catch (e) {
+        showToast('Error updating profile', 'danger');
+    }
+}
+
+async function changeUserPassword() {
+    const old_password = document.getElementById('old-pass').value;
+    const new_password = document.getElementById('new-pass').value;
+    try {
+        const res = await fetch('/api/profile/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ old_password: old_password, new_password: new_password })
+        });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'danger');
+        if (data.success) {
+            document.getElementById('old-pass').value = '';
+            document.getElementById('new-pass').value = '';
+        }
+    } catch (e) {
+        showToast('Error changing password', 'danger');
+    }
+}
+</script>
+{% endblock %}

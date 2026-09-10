@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Select Showtimes - CineTickets{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <div>
+        <h1 class="section-title" style="font-size: 2rem;">Select Showtimes</h1>
+        {% if movie %}<p style="color: var(--text-muted);">For: <strong style="color: #fff;">{{ movie.title }}</strong></p>{% endif %}
+    </div>
+</div>
+
+{% for theatre in theatres %}
+<div style="background: var(--bg-card); padding: 1.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+    <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.3rem;">{{ theatre.name }}</h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;"><i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> {{ theatre.address }}</p>
+
+    <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
+        {% for show in shows %}
+            {% if (show.theatre_id == theatre.id or show.theatre_id == theatre._id) or (show.theatre and (show.theatre.id == theatre.id or show.theatre.id == theatre._id)) %}
+                <a href="{{ url_for('booking_bp.seats_page', show_id=show.id or show._id) }}" class="btn-secondary" style="display: flex; flex-direction: column; align-items: center; padding: 0.6rem 1.2rem; text-align: center;">
+                    <span style="font-size: 0.95rem; font-weight: 700; color: var(--primary-red);">{{ show.time }}</span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">{{ show.screen or 'Screen 1' }} • ₹{{ show.price or 220 }}</span>
+                </a>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<p style="color: var(--text-muted);">No theatres available.</p>
+{% endfor %}
+{% endblock %}

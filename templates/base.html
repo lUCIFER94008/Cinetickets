@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CineTickets - Modern Movie Ticket Booking{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="{{ url_for('main_bp.index') }}" class="logo">
+                <i class="fa-solid fa-film" style="color: var(--primary-red);"></i>
+                Cine<span>Tickets</span>
+            </a>
+            
+            <ul class="nav-links">
+                <li><a href="{{ url_for('main_bp.index') }}" class="nav-link {% if request.endpoint == 'main_bp.index' %}active{% endif %}">Home</a></li>
+                <li><a href="{{ url_for('movie_bp.movies_page') }}" class="nav-link {% if request.endpoint == 'movie_bp.movies_page' %}active{% endif %}">Movies</a></li>
+                {% if current_user %}
+                    {% if current_user.role == 'admin' %}
+                    <li><a href="{{ url_for('admin_bp.admin_dashboard') }}" class="nav-link {% if 'admin_bp' in request.endpoint %}active{% endif %}" style="color: var(--primary-red); font-weight: 700;"><i class="fa-solid fa-chart-line"></i> Admin Dashboard</a></li>
+                    {% endif %}
+                    <li><a href="{{ url_for('booking_bp.user_bookings') }}" class="nav-link {% if request.endpoint == 'booking_bp.user_bookings' %}active{% endif %}">My Bookings</a></li>
+                    <li><a href="{{ url_for('profile_bp.profile_page') }}" class="nav-link {% if request.endpoint == 'profile_bp.profile_page' %}active{% endif %}">Profile</a></li>
+                {% endif %}
+            </ul>
+
+
+            <div class="nav-actions">
+                <div class="location-picker">
+                    <i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i>
+                    <span>Kochi</span>
+                </div>
+
+                {% if current_user %}
+                    <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-white);">Hi, {{ current_user.name }}</span>
+                    <a href="{{ url_for('auth_bp.logout') }}" class="btn-secondary" style="padding: 0.4rem 0.9rem; font-size: 0.85rem;">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('auth_bp.login_page') }}" class="btn-secondary">Login</a>
+                    <a href="{{ url_for('auth_bp.register_page') }}" class="btn-primary">Register</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Body Container -->
+    <main class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer style="background-color: var(--bg-card); border-top: 1px solid var(--border-color); padding: 2.5rem 0; margin-top: 4rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+        <div style="max-width: 1280px; margin: 0 auto; padding: 0 1.5rem;">
+            <p style="margin-bottom: 0.75rem;">&copy; 2026 CineTickets. All Rights Reserved. Powered by Flask &amp; MongoDB Atlas.</p>
+            <div style="display: flex; justify-content: center; gap: 1.5rem;">
+                <a href="{{ url_for('main_bp.index') }}" style="color: var(--text-muted);">Home</a>
+                <a href="{{ url_for('movie_bp.movies_page') }}" style="color: var(--text-muted);">Movies</a>
+                <a href="{{ url_for('main_bp.health_check') }}" style="color: var(--text-muted);">System Health</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Mobile Bottom Nav Bar -->
+    <div class="mobile-bottom-nav">
+        <a href="{{ url_for('main_bp.index') }}" style="text-align: center; color: var(--text-muted); font-size: 0.75rem;"><i class="fa-solid fa-house" style="font-size: 1.1rem; display: block; margin-bottom: 2px;"></i>Home</a>
+        <a href="{{ url_for('movie_bp.movies_page') }}" style="text-align: center; color: var(--text-muted); font-size: 0.75rem;"><i class="fa-solid fa-film" style="font-size: 1.1rem; display: block; margin-bottom: 2px;"></i>Movies</a>
+        <a href="{{ url_for('booking_bp.user_bookings') }}" style="text-align: center; color: var(--text-muted); font-size: 0.75rem;"><i class="fa-solid fa-ticket" style="font-size: 1.1rem; display: block; margin-bottom: 2px;"></i>Bookings</a>
+        <a href="{{ url_for('profile_bp.profile_page') }}" style="text-align: center; color: var(--text-muted); font-size: 0.75rem;"><i class="fa-solid fa-user" style="font-size: 1.1rem; display: block; margin-bottom: 2px;"></i>Profile</a>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,10 @@
+Flask
+pymongo
+dnspython
+python-dotenv
+Werkzeug
+mongomock
+requests
+qrcode
+Pillow
+

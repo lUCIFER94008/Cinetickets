@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block title %}Error - CineTickets{% endblock %}
+
+{% block content %}
+<div style="max-width: 500px; margin: 4rem auto; background: var(--bg-card); padding: 3rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); text-align: center;">
+    <i class="fa-solid fa-triangle-exclamation" style="font-size: 3.5rem; color: var(--primary-red); margin-bottom: 1.25rem;"></i>
+    <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem;">Something Went Wrong</h2>
+    <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 2rem;">{{ error_message or 'The requested page or resource could not be found.' }}</p>
+    <a href="{{ url_for('main_bp.index') }}" class="btn-primary" style="padding: 0.75rem 1.8rem;">Return to Homepage</a>
+</div>
+{% endblock %}

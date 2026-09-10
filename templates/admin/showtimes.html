@@ -1,0 +1,140 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Showtime Management - CineTickets Admin{% endblock %}
+{% block header_title %}Schedule &amp; Showtimes Control{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-white);">Scheduled Showtimes</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Connect movies to cinema venues, assign screens, dates, times, and ticket rates</p>
+    </div>
+    <button onclick="openModal('add-showtime-modal')" class="btn-primary" style="padding: 0.6rem 1.25rem;">
+        <i class="fa-solid fa-plus"></i> Schedule New Showtime
+    </button>
+</div>
+
+<div class="admin-table-container">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Movie Title</th>
+                <th>Theatre Venue</th>
+                <th>Screen</th>
+                <th>Date</th>
+                <th>Time Slot</th>
+                <th>Ticket Price</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in shows %}
+            <tr>
+                <td>
+                    <strong style="color: var(--text-white); font-size: 0.95rem;">{{ s.movie.title if s.movie else 'Movie' }}</strong>
+                </td>
+                <td style="color: var(--text-muted);">
+                    <i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> {{ s.theatre.name if s.theatre else 'Cinema' }}
+                </td>
+                <td><span class="badge" style="background: rgba(255,255,255,0.08); border: 1px solid var(--border-color);">{{ s.screen or 'Screen 1' }}</span></td>
+                <td style="color: var(--text-muted); font-size: 0.9rem;">{{ s.date }}</td>
+                <td><span style="color: var(--primary-red); font-weight: 700;">{{ s.time }}</span></td>
+                <td><span style="font-weight: 700; color: var(--text-white);">₹{{ s.price or 220 }}</span></td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{{ url_for('admin_bp.admin_seats', show_id=s.id or s._id) }}" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;"><i class="fa-solid fa-couch"></i> View Seats</a>
+                        <form action="{{ url_for('admin_bp.delete_showtime', show_id=s.id or s._id) }}" method="POST" onsubmit="return confirm('Delete this showtime slot and all seat records?');" style="display: inline;">
+                            <button type="submit" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; color: #EF4444;" title="Delete Showtime"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No scheduled showtimes found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Schedule Showtime Modal -->
+<div id="add-showtime-modal" class="admin-modal-overlay">
+    <div class="admin-modal">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <h3 style="font-size: 1.2rem; font-weight: 800; margin: 0;">Schedule New Showtime</h3>
+            <button onclick="closeModal('add-showtime-modal')" style="background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer;">&times;</button>
+        </div>
+
+        <form action="{{ url_for('admin_bp.add_showtime') }}" method="POST">
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label class="form-label">Select Movie</label>
+                <select name="movie_id" class="form-control" style="background: var(--bg-surface); color: #fff;" required>
+                    <option value="" disabled selected>-- Select Movie --</option>
+                    {% for m in movies %}
+                    <option value="{{ m.id or m._id }}">{{ m.title }} ({{ m.language }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label class="form-label">Select Theatre Partner</label>
+                <select name="theatre_id" class="form-control" style="background: var(--bg-surface); color: #fff;" required>
+                    <option value="" disabled selected>-- Select Theatre --</option>
+                    {% for t in theatres %}
+                    <option value="{{ t.id or t._id }}">{{ t.name }} ({{ t.location }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label class="form-label">Screen Number</label>
+                    <select name="screen" class="form-control" style="background: var(--bg-surface); color: #fff;">
+                        <option value="Screen 1">Screen 1</option>
+                        <option value="Screen 2">Screen 2</option>
+                        <option value="Screen 3">Screen 3</option>
+                        <option value="IMAX Screen">IMAX Screen</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Base Ticket Price (₹)</label>
+                    <input type="number" name="price" class="form-control" value="220" min="50" required>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1.25rem;">
+                <div class="form-group">
+                    <label class="form-label">Show Date</label>
+                    <input type="date" name="date" class="form-control" required style="background: var(--bg-surface); color: #fff;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Show Time Slot</label>
+                    <select name="time" class="form-control" style="background: var(--bg-surface); color: #fff;" required>
+                        <option value="10:00 AM">10:00 AM</option>
+                        <option value="01:30 PM">01:30 PM</option>
+                        <option value="05:00 PM">05:00 PM</option>
+                        <option value="08:30 PM">08:30 PM</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; padding: 0.8rem;">Publish Showtime &amp; Initialize Seats</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openModal(id) { 
+    document.getElementById(id).style.display = 'flex'; 
+    // Set default date to today
+    const dateInput = document.querySelector('input[type="date"]');
+    if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+}
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+</script>
+{% endblock %}

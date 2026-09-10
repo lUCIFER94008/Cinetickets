@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Food &amp; Beverages - CineTickets{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <div>
+        <a href="javascript:history.back()" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem; display: inline-block;"><i class="fa-solid fa-arrow-left"></i> Back to Seats</a>
+        <h1 class="section-title" style="font-size: 1.8rem;">Grab Snacks &amp; Drinks</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Pre-order movie snacks to skip cinema lines</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+    <!-- Items Grid -->
+    <div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.25rem;">
+            <!-- Classic Combo -->
+            <div style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden; padding: 1rem; display: flex; flex-direction: column; justify-content: space-between;">
+                <img src="https://images.unsplash.com/photo-1585647347384-2593bc35786b?q=80&w=600&auto=format&fit=crop" style="width: 100%; height: 130px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 0.75rem;" alt="Classic Combo">
+                <h4 style="font-size: 1rem; font-weight: 700;">Classic Combo</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">1 Medium Popcorn + 2 Soft Drinks (500ml)</p>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; color: var(--primary-red);">₹270.00</span>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--bg-surface); padding: 0.2rem 0.5rem; border-radius: var(--radius-sm);">
+                        <button class="btn-secondary" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;" onclick="updateFoodQuantity('Classic Combo', 270, -1)">-</button>
+                        <span id="qty-Classic-Combo" style="font-size: 0.9rem; font-weight: 700;">0</span>
+                        <button class="btn-primary" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;" onclick="updateFoodQuantity('Classic Combo', 270, 1)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Family Combo -->
+            <div style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden; padding: 1rem; display: flex; flex-direction: column; justify-content: space-between;">
+                <img src="https://images.unsplash.com/photo-1578849278619-e73505e9610f?q=80&w=600&auto=format&fit=crop" style="width: 100%; height: 130px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 0.75rem;" alt="Family Combo">
+                <h4 style="font-size: 1rem; font-weight: 700;">Family Combo</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">1 Large Popcorn + 2 Drinks + 2 Nachos</p>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; color: var(--primary-red);">₹520.00</span>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--bg-surface); padding: 0.2rem 0.5rem; border-radius: var(--radius-sm);">
+                        <button class="btn-secondary" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;" onclick="updateFoodQuantity('Family Combo', 520, -1)">-</button>
+                        <span id="qty-Family-Combo" style="font-size: 0.9rem; font-weight: 700;">0</span>
+                        <button class="btn-primary" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;" onclick="updateFoodQuantity('Family Combo', 520, 1)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Couple Combo -->
+            <div style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden; padding: 1rem; display: flex; flex-direction: column; justify-content: space-between;">
+                <img src="https://images.unsplash.com/photo-1585647347384-2593bc35786b?q=80&w=600&auto=format&fit=crop" style="width: 100%; height: 130px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 0.75rem;" alt="Couple Combo">
+                <h4 style="font-size: 1rem; font-weight: 700;">Couple Combo</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">1 Caramel Popcorn + 2 Soft Drinks</p>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; color: var(--primary-red);">₹320.00</span>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--bg-surface); padding: 0.2rem 0.5rem; border-radius: var(--radius-sm);">
+                        <button class="btn-secondary" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;" onclick="updateFoodQuantity('Couple Combo', 320, -1)">-</button>
+                        <span id="qty-Couple-Combo" style="font-size: 0.9rem; font-weight: 700;">0</span>
+                        <button class="btn-primary" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;" onclick="updateFoodQuantity('Couple Combo', 320, 1)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loaded Cheesy Nachos -->
+            <div style="background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden; padding: 1rem; display: flex; flex-direction: column; justify-content: space-between;">
+                <img src="https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?q=80&w=600&auto=format&fit=crop" style="width: 100%; height: 130px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 0.75rem;" alt="Loaded Cheesy Nachos">
+                <h4 style="font-size: 1rem; font-weight: 700;">Loaded Cheesy Nachos</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Tortilla chips with jalapeno dip &amp; salsa</p>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; color: var(--primary-red);">₹160.00</span>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--bg-surface); padding: 0.2rem 0.5rem; border-radius: var(--radius-sm);">
+                        <button class="btn-secondary" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;" onclick="updateFoodQuantity('Loaded Cheesy Nachos', 160, -1)">-</button>
+                        <span id="qty-Loaded-Cheesy-Nachos" style="font-size: 0.9rem; font-weight: 700;">0</span>
+                        <button class="btn-primary" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;" onclick="updateFoodQuantity('Loaded Cheesy Nachos', 160, 1)">+</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Cart Summary -->
+    <div style="background: var(--bg-card); padding: 1.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); height: fit-content;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 1rem;">Selected Snacks</h3>
+        <ul id="food-cart-items" style="list-style: none; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; min-height: 60px;">
+            <li>No snacks selected yet.</li>
+        </ul>
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <span style="font-weight: 600;">Food Total:</span>
+            <span id="food-total-display" style="font-size: 1.25rem; font-weight: 800; color: var(--primary-red);">₹0.00</span>
+        </div>
+        <a href="{{ url_for('booking_bp.payment_page') }}" class="btn-primary" style="width: 100%; padding: 0.8rem; text-align: center;">Proceed to Payment <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/booking.js') }}"></script>
+{% endblock %}

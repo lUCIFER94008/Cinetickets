@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Booking Summary - CineTickets{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <div>
+        <a href="javascript:history.back()" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem; display: inline-block;"><i class="fa-solid fa-arrow-left"></i> Back to Seats</a>
+        <h1 class="section-title" style="font-size: 1.8rem;">Booking Summary</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Review your movie ticket details before proceeding to payment</p>
+    </div>
+</div>
+
+<div style="max-width: 750px; margin: 0 auto;">
+    <div style="background: var(--bg-card); padding: 2rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); box-shadow: var(--shadow-card);">
+        
+        <!-- Movie & Theatre Header -->
+        <div style="display: flex; gap: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 1.5rem; align-items: center;">
+            {% if show and show.movie %}
+            <img src="{{ show.movie.poster_url or show.movie.poster or url_for('static', filename='images/movies/default-movie.jpg') }}" alt="{{ show.movie.title }}" style="width: 100px; height: 140px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-color);" onerror="this.onerror=null; this.src='/static/images/movies/default-movie.jpg';">
+            {% endif %}
+            <div>
+                <span class="badge" style="margin-bottom: 0.5rem; display: inline-block;">{{ show.movie.certificate if show and show.movie else 'UA' }} • {{ show.movie.language if show and show.movie else 'English' }}</span>
+                <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-white); margin-bottom: 0.4rem;">{{ show.movie.title if show and show.movie else 'Movie Title' }}</h2>
+                <p style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+                    <i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> 
+                    <strong>{{ show.theatre.name if show and show.theatre else 'Cinema Theatre' }}</strong>
+                </p>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">{{ show.theatre.address if show and show.theatre else 'Kochi' }}</p>
+            </div>
+        </div>
+
+        <!-- Date & Showtime Banner -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: var(--bg-surface); padding: 1rem 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+            <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Show Date</span>
+                <p style="font-size: 1.05rem; font-weight: 700; color: var(--text-white); margin-top: 0.2rem;"><i class="fa-regular fa-calendar-check" style="color: var(--primary-red);"></i> <span id="summary-date-display">{{ show.date if show else 'Today' }}</span></p>
+            </div>
+            <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Showtime</span>
+                <p style="font-size: 1.05rem; font-weight: 700; color: var(--text-white); margin-top: 0.2rem;"><i class="fa-regular fa-clock" style="color: var(--primary-red);"></i> <span id="summary-time-display">{{ show.time if show else '05:00 PM' }}</span> ({{ show.screen if show else 'Screen 1' }})</p>
+            </div>
+        </div>
+
+        <!-- Price & Seat Breakdown -->
+        <div style="margin-bottom: 2rem;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-white);">Order Breakdown</h3>
+
+            <div style="display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px dashed var(--border-color); font-size: 0.95rem;">
+                <span style="color: var(--text-muted);">Selected Seats:</span>
+                <span id="summary-seats-val" style="font-weight: 700; color: var(--primary-red);">A1, A2</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px dashed var(--border-color); font-size: 0.95rem;">
+                <span style="color: var(--text-muted);">Ticket Quantity:</span>
+                <span id="summary-qty-val" style="font-weight: 600; color: var(--text-white);">2 Tickets</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px dashed var(--border-color); font-size: 0.95rem;">
+                <span style="color: var(--text-muted);">Ticket Price:</span>
+                <span id="summary-ticket-price-val" style="font-weight: 600; color: var(--text-white);">₹360.00</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px dashed var(--border-color); font-size: 0.95rem;">
+                <span style="color: var(--text-muted);">Convenience Fee:</span>
+                <span style="font-weight: 600; color: var(--text-white);">₹30.00</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; padding: 1rem 0 0 0; font-size: 1.25rem;">
+                <span style="font-weight: 800; color: var(--text-white);">TOTAL AMOUNT:</span>
+                <span id="summary-grand-total-val" style="font-weight: 800; color: var(--primary-red);">₹390.00</span>
+            </div>
+        </div>
+
+        <!-- Continue Button -->
+        <button onclick="goToPaymentPage('{{ show.id or show._id if show else "" }}')" class="btn-primary" style="width: 100%; padding: 0.95rem; font-size: 1.1rem; text-align: center; border-radius: var(--radius-lg);">
+            PROCEED TO PAYMENT <i class="fa-solid fa-arrow-right" style="margin-left: 0.5rem;"></i>
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const selectedSeats = JSON.parse(sessionStorage.getItem('selected_seats') || '[]');
+    const ticketTotal = parseFloat(sessionStorage.getItem('ticket_total') || 0);
+
+    if (selectedSeats.length === 0) {
+        if (typeof showToast === 'function') {
+            showToast('No seats selected. Please select seats.', 'warning');
+        }
+        window.location.href = '/movies';
+        return;
+    }
+
+    document.getElementById('summary-seats-val').innerText = selectedSeats.join(', ');
+    document.getElementById('summary-qty-val').innerText = `${selectedSeats.length} Ticket${selectedSeats.length > 1 ? 's' : ''}`;
+    document.getElementById('summary-ticket-price-val').innerText = `₹${ticketTotal.toFixed(2)}`;
+
+    const fee = 30.0;
+    const grandTotal = ticketTotal + fee;
+    document.getElementById('summary-grand-total-val').innerText = `₹${grandTotal.toFixed(2)}`;
+});
+
+function goToPaymentPage(showId) {
+    if (!showId) {
+        showId = sessionStorage.getItem('current_show_id') || '';
+    }
+    window.location.href = `/payment?show_id=${showId}`;
+}
+</script>
+{% endblock %}

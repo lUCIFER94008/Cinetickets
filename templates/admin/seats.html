@@ -1,0 +1,77 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Seat Availability - CineTickets Admin{% endblock %}
+{% block header_title %}Cinema Seat Grid Inspection{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-white);">Showtime Seat Availability</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Inspect real-time seat occupancy and locked seats for any scheduled showtime</p>
+    </div>
+</div>
+
+<!-- Showtime Filter Dropdown -->
+<div style="background: var(--bg-card); padding: 1.25rem 1.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); margin-bottom: 2rem; display: flex; align-items: center; gap: 1rem;">
+    <label style="font-weight: 700; color: var(--text-white); white-space: nowrap;">Select Showtime:</label>
+    <select id="admin-show-selector" class="form-control" style="background: var(--bg-surface); color: #fff; flex: 1;" onchange="loadShowSeats(this.value)">
+        {% for s in shows %}
+        <option value="{{ s.id or s._id }}" {% if selected_show and (selected_show.id == s.id or selected_show._id == s._id) %}selected{% endif %}>
+            {{ s.movie.title if s.movie else 'Movie' }} • {{ s.theatre.name if s.theatre else 'Cinema' }} ({{ s.screen }}) — {{ s.date }} @ {{ s.time }}
+        </option>
+        {% endfor %}
+    </select>
+</div>
+
+{% if selected_show %}
+<!-- Selected Showtime Meta -->
+<div style="background: var(--bg-card); padding: 1.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-card);">
+    <div>
+        <span class="badge" style="background: rgba(229,30,42,0.2); color: var(--primary-red); border: 1px solid var(--primary-red); margin-bottom: 0.4rem;">{{ selected_show.screen or 'Screen 1' }}</span>
+        <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-white); margin-bottom: 0.3rem;">{{ selected_show.movie.title if selected_show.movie else 'Movie' }}</h3>
+        <p style="font-size: 0.88rem; color: var(--text-muted);"><i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> {{ selected_show.theatre.name if selected_show.theatre else 'Cinema' }} • {{ selected_show.date }} @ {{ selected_show.time }}</p>
+    </div>
+    
+    <!-- Seat Legend -->
+    <div class="seat-legend" style="margin: 0;">
+        <div class="legend-item"><div class="seat-box available"></div> Available</div>
+        <div class="legend-item"><div class="seat-box booked"></div> Booked</div>
+    </div>
+</div>
+
+<!-- Cinema Screen Indicator -->
+<div class="screen-indicator">SCREEN THIS WAY</div>
+
+<!-- Cinema Seat Grid -->
+<div class="seats-grid-container" style="background: var(--bg-card); padding: 2rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); box-shadow: var(--shadow-card);">
+    {% set rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] %}
+    {% for r in rows %}
+    <div class="seat-row">
+        <span class="row-label">{{ r }}</span>
+        {% for s in seats %}
+            {% if s.row == r %}
+                <div class="seat {% if s.status == 'booked' %}booked{% endif %}" 
+                     data-seat-number="{{ s.seat_number }}" 
+                     title="Seat {{ s.seat_number }} (₹{{ s.price }}) - Status: {{ s.status|upper }}">
+                    {{ s.number }}
+                </div>
+            {% endif %}
+        {% endfor %}
+        <span class="row-label">{{ r }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p style="color: var(--text-muted);">No showtime selected.</p>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loadShowSeats(showId) {
+    if (showId) {
+        window.location.href = `/admin/seats?show_id=${showId}`;
+    }
+}
+</script>
+{% endblock %}

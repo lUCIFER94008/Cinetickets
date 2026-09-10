@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}CineTickets - Premium Movie Ticket Booking{% endblock %}
+
+{% block content %}
+<!-- Top Search & Filter Bar (Moved above Hero as requested) -->
+<div style="background-color: var(--bg-card); padding: 1.25rem 1.75rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); margin-bottom: 2rem; box-shadow: var(--shadow-card);">
+    <form action="{{ url_for('movie_bp.movies_page') }}" method="GET" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+        <div style="position: relative; flex: 1; min-width: 260px;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1.1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1rem;"></i>
+            <input type="text" name="search" class="form-control" placeholder="Search movies by title, genre, language..." style="padding-left: 2.8rem; height: 48px; background-color: var(--bg-input); border-radius: var(--radius-md); font-size: 0.95rem;">
+        </div>
+        <button type="submit" class="btn-primary" style="height: 48px; padding: 0 1.8rem; font-size: 0.95rem; white-space: nowrap;">
+            <i class="fa-solid fa-magnifying-glass"></i> Search
+        </button>
+    </form>
+</div>
+
+<!-- Hero Section -->
+{% if hero_movies and hero_movies|length > 0 %}
+{% set hero = hero_movies[0] %}
+<section class="hero-banner">
+    <img src="{{ hero.banner_url or hero.poster_url }}" alt="{{ hero.title }}" class="hero-img" onerror="this.onerror=null; this.src='/static/images/movies/default-movie.jpg';">
+    <div class="hero-overlay">
+        <div class="hero-details">
+            <span class="badge">Featured Release</span>
+            <h1 class="hero-title">{{ hero.title }}</h1>
+            <div class="meta-row">
+                <span><i class="fa-solid fa-star" style="color: #FBBF24;"></i> {{ hero.rating }}</span>
+                <span>{{ hero.certificate }}</span>
+                <span>{{ hero.duration }}</span>
+                <span>{{ hero.language }}</span>
+            </div>
+            <p class="hero-desc">{{ hero.description or hero.short_description }}</p>
+            <a href="{{ url_for('movie_bp.movie_details', movie_id=hero.id or hero._id) }}" class="btn-primary" style="padding: 0.8rem 1.8rem; font-size: 1rem;">
+                <i class="fa-solid fa-ticket"></i> Book Now
+            </a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Now Showing Grid -->
+<div class="section-header">
+    <h2 class="section-title">Now Showing</h2>
+    <a href="{{ url_for('movie_bp.movies_page', status='now_showing') }}" style="color: var(--primary-red); font-weight: 600; font-size: 0.9rem;">View All <i class="fa-solid fa-chevron-right"></i></a>
+</div>
+
+<div class="movie-grid">
+    {% for movie in now_showing %}
+    <div class="movie-card">
+        <div class="poster-wrapper">
+            <img src="{{ movie.poster_url or movie.poster or url_for('static', filename='images/movies/default-movie.jpg') }}" alt="{{ movie.title }}" class="movie-poster" loading="lazy" onerror="this.onerror=null; this.src='/static/images/movies/default-movie.jpg';">
+            <div class="rating-badge"><i class="fa-solid fa-star"></i> {{ movie.rating }}</div>
+        </div>
+        <div class="movie-card-info">
+            <div>
+                <h3 class="card-title">{{ movie.title }}</h3>
+                <p class="card-meta">{{ movie.certificate }} • {{ movie.language }} • {{ movie.genre|join(', ') if movie.genre is iterable and movie.genre is not string else movie.genre }}</p>
+            </div>
+            <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}" class="btn-primary" style="width: 100%; font-size: 0.85rem; padding: 0.5rem;">Book Tickets</a>
+        </div>
+    </div>
+    {% else %}
+    <p style="color: var(--text-muted);">No movies currently showing.</p>
+    {% endfor %}
+</div>
+
+<!-- Coming Soon Grid -->
+<div class="section-header">
+    <h2 class="section-title">Coming Soon</h2>
+    <a href="{{ url_for('movie_bp.movies_page', status='coming_soon') }}" style="color: var(--primary-red); font-weight: 600; font-size: 0.9rem;">View All <i class="fa-solid fa-chevron-right"></i></a>
+</div>
+
+<div class="movie-grid">
+    {% for movie in coming_soon %}
+    <div class="movie-card">
+        <div class="poster-wrapper">
+            <img src="{{ movie.poster_url or movie.poster or url_for('static', filename='images/movies/default-movie.jpg') }}" alt="{{ movie.title }}" class="movie-poster" loading="lazy" onerror="this.onerror=null; this.src='/static/images/movies/default-movie.jpg';">
+            <div class="rating-badge"><i class="fa-solid fa-star"></i> {{ movie.rating }}</div>
+        </div>
+        <div class="movie-card-info">
+            <div>
+                <h3 class="card-title">{{ movie.title }}</h3>
+                <p class="card-meta">{{ movie.certificate }} • {{ movie.language }} • {{ movie.genre|join(', ') if movie.genre is iterable and movie.genre is not string else movie.genre }}</p>
+            </div>
+            <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}" class="btn-secondary" style="width: 100%; font-size: 0.85rem; padding: 0.5rem; text-align: center;">View Details</a>
+        </div>
+    </div>
+    {% else %}
+    <p style="color: var(--text-muted);">No upcoming movies found.</p>
+    {% endfor %}
+</div>
+
+<!-- Nearby Theatres Section -->
+<div class="section-header" style="margin-top: 3rem;">
+    <h2 class="section-title">Popular Cinema Theatres in Kochi</h2>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem;">
+    {% for theatre in theatres %}
+    <div style="background: var(--bg-card); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h4 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.3rem;">{{ theatre.name }}</h4>
+            <p style="font-size: 0.85rem; color: var(--text-muted);"><i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> {{ theatre.address }}</p>
+        </div>
+        <span class="badge badge-outline">{{ theatre.distance or '3.5 km' }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

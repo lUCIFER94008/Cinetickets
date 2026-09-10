@@ -1,0 +1,87 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}User Management - CineTickets Admin{% endblock %}
+{% block header_title %}User Accounts &amp; Role Management{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-white);">All Registered Users</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Manage customer profiles, assign administrator privileges, and control account access</p>
+    </div>
+</div>
+
+<div class="admin-table-container">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>User Details</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Role</th>
+                <th>Registration Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.08); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--primary-red);">
+                            {{ u.name[0]|upper if u.name else 'U' }}
+                        </div>
+                        <div>
+                            <strong style="color: var(--text-white); font-size: 0.95rem;">{{ u.name }}</strong>
+                        </div>
+                    </div>
+                </td>
+                <td style="color: var(--text-muted);">{{ u.email }}</td>
+                <td style="color: var(--text-muted);">{{ u.phone or '-' }}</td>
+                <td>
+                    {% if u.role == 'admin' %}
+                    <span class="badge" style="background: rgba(229,30,42,0.2); color: var(--primary-red); border: 1px solid var(--primary-red); font-weight: 700;">
+                        <i class="fa-solid fa-user-shield"></i> ADMIN
+                    </span>
+                    {% else %}
+                    <span class="badge" style="background: rgba(255,255,255,0.08); color: var(--text-muted); border: 1px solid var(--border-color);">
+                        USER
+                    </span>
+                    {% endif %}
+                </td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">{{ u.created_at or 'Registered' }}</td>
+                <td>
+                    <span class="badge" style="background: rgba(16,185,129,0.15); color: #10B981;">Active</span>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <!-- Role Toggle Button -->
+                        <form action="{{ url_for('admin_bp.change_role', user_id=u.id or u._id) }}" method="POST" onsubmit="return confirm('Are you sure you want to change the role for {{ u.name }}?');" style="display: inline;">
+                            {% if u.role == 'admin' %}
+                            <input type="hidden" name="role" value="user">
+                            <button type="submit" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" title="Demote to User">Make User</button>
+                            {% else %}
+                            <input type="hidden" name="role" value="admin">
+                            <button type="submit" class="btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" title="Promote to Admin">Make Admin</button>
+                            {% endif %}
+                        </form>
+
+                        <!-- Delete User Form -->
+                        <form action="{{ url_for('admin_bp.delete_user', user_id=u.id or u._id) }}" method="POST" onsubmit="return confirm('CAUTION: Are you sure you want to permanently delete user {{ u.name }}? This action cannot be undone.');" style="display: inline;">
+                            <button type="submit" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; color: #EF4444; border-color: rgba(239,68,68,0.3);" title="Delete User">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No registered users found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

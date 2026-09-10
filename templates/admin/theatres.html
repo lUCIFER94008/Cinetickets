@@ -1,0 +1,163 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Theatre Management - CineTickets Admin{% endblock %}
+{% block header_title %}Cinema Theatre Partners{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-white);">Cinema Venues &amp; Complex Partners</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Manage cinema locations, screen configurations, and seating capacities</p>
+    </div>
+    <button onclick="openModal('add-theatre-modal')" class="btn-primary" style="padding: 0.6rem 1.25rem;">
+        <i class="fa-solid fa-plus"></i> Add New Theatre
+    </button>
+</div>
+
+<div class="admin-table-container">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Theatre Name</th>
+                <th>Location / City</th>
+                <th>Address</th>
+                <th>Screens</th>
+                <th>Capacity</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in theatres %}
+            <tr>
+                <td>
+                    <strong style="color: var(--text-white); font-size: 1rem;">{{ t.name }}</strong>
+                </td>
+                <td style="color: var(--text-muted);">
+                    <i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> {{ t.location }} ({{ t.city or 'Kochi' }})
+                </td>
+                <td style="color: var(--text-muted); font-size: 0.85rem; max-width: 250px;">
+                    {{ t.address }}
+                </td>
+                <td><span class="badge" style="background: rgba(59,130,246,0.15); color: #3B82F6;">{{ t.screens or 4 }} Screens</span></td>
+                <td><span style="font-weight: 700; color: var(--text-white);">{{ t.seating_capacity or 120 }} Seats</span></td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button onclick="openEditTheatreModal('{{ t.id or t._id }}', '{{ t.name|e }}', '{{ t.location|e }}', '{{ t.address|e }}', '{{ t.city|e }}', '{{ t.screens or 4 }}', '{{ t.seating_capacity or 120 }}')" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">Edit</button>
+                        <form action="{{ url_for('admin_bp.delete_theatre', theatre_id=t.id or t._id) }}" method="POST" onsubmit="return confirm('Delete theatre {{ t.name }} and all scheduled showtimes?');" style="display: inline;">
+                            <button type="submit" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; color: #EF4444;" title="Delete Theatre"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No theatres registered in database.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Theatre Modal -->
+<div id="add-theatre-modal" class="admin-modal-overlay">
+    <div class="admin-modal">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <h3 style="font-size: 1.2rem; font-weight: 800; margin: 0;">Add New Theatre Partner</h3>
+            <button onclick="closeModal('add-theatre-modal')" style="background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer;">&times;</button>
+        </div>
+
+        <form action="{{ url_for('admin_bp.add_theatre') }}" method="POST">
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label class="form-label">Theatre Name</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. PVR Cinemas, Lulu Mall" required>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label class="form-label">Location / Area</label>
+                    <input type="text" name="location" class="form-control" placeholder="Edappally" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">City</label>
+                    <input type="text" name="city" class="form-control" value="Kochi" required>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label class="form-label">Number of Screens</label>
+                    <input type="number" name="screens" class="form-control" value="4" min="1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Seating Capacity</label>
+                    <input type="number" name="seating_capacity" class="form-control" value="120" min="10">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label">Full Address</label>
+                <textarea name="address" class="form-control" rows="2" placeholder="Street address, landmark, pin code..." required></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; padding: 0.8rem;">Register Theatre</button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Theatre Modal -->
+<div id="edit-theatre-modal" class="admin-modal-overlay">
+    <div class="admin-modal">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <h3 style="font-size: 1.2rem; font-weight: 800; margin: 0;">Edit Theatre Details</h3>
+            <button onclick="closeModal('edit-theatre-modal')" style="background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer;">&times;</button>
+        </div>
+
+        <form id="edit-theatre-form" action="" method="POST">
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label class="form-label">Theatre Name</label>
+                <input type="text" id="edit-t-name" name="name" class="form-control" required>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label class="form-label">Location</label>
+                    <input type="text" id="edit-t-location" name="location" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">City</label>
+                    <input type="text" id="edit-t-city" name="city" class="form-control" required>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label class="form-label">Screens</label>
+                    <input type="number" id="edit-t-screens" name="screens" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Capacity</label>
+                    <input type="number" id="edit-t-capacity" name="seating_capacity" class="form-control">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label">Address</label>
+                <textarea id="edit-t-address" name="address" class="form-control" rows="2" required></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; padding: 0.8rem;">Save Changes</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function openEditTheatreModal(id, name, location, address, city, screens, capacity) {
+    document.getElementById('edit-theatre-form').action = `/admin/theatres/edit/${id}`;
+    document.getElementById('edit-t-name').value = name;
+    document.getElementById('edit-t-location').value = location;
+    document.getElementById('edit-t-address').value = address;
+    document.getElementById('edit-t-city').value = city;
+    document.getElementById('edit-t-screens').value = screens;
+    document.getElementById('edit-t-capacity').value = capacity;
+    openModal('edit-theatre-modal');
+}
+</script>
+{% endblock %}

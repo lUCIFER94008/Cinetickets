@@ -1,0 +1,221 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Movie Management - CineTickets Admin{% endblock %}
+{% block header_title %}Movie Catalog &amp; Status Control{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-white);">Movie Library</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Add new titles, edit poster graphics, and update release status</p>
+    </div>
+    <button onclick="openModal('add-movie-modal')" class="btn-primary" style="padding: 0.6rem 1.25rem;">
+        <i class="fa-solid fa-plus"></i> Add New Movie
+    </button>
+</div>
+
+<div class="admin-table-container">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Poster &amp; Title</th>
+                <th>Language &amp; Duration</th>
+                <th>Genre</th>
+                <th>Certificate</th>
+                <th>Rating</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in movies %}
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <img src="{{ m.poster_url or m.poster or url_for('static', filename='images/movies/default-movie.jpg') }}" alt="{{ m.title }}" style="width: 48px; height: 68px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-color);" onerror="this.onerror=null; this.src='/static/images/movies/default-movie.jpg';">
+                        <div>
+                            <strong style="color: var(--text-white); font-size: 1rem;">{{ m.title }}</strong>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.1rem;">Dir: {{ m.director or 'N/A' }}</p>
+                        </div>
+                    </div>
+                </td>
+                <td style="color: var(--text-muted);">
+                    {{ m.language }}<br>
+                    <small style="color: var(--text-muted);">{{ m.duration }}</small>
+                </td>
+                <td style="color: var(--text-muted);">
+                    {{ m.genre|join(', ') if m.genre is iterable and m.genre is not string else m.genre }}
+                </td>
+                <td><span class="badge" style="background: rgba(255,255,255,0.08); border: 1px solid var(--border-color);">{{ m.certificate or 'UA' }}</span></td>
+                <td><span style="color: #FBBF24; font-weight: 700;"><i class="fa-solid fa-star"></i> {{ m.rating }}/5</span></td>
+                <td>
+                    {% if m.status == 'now_showing' %}
+                    <span class="badge" style="background: rgba(16,185,129,0.15); color: #10B981; border: 1px solid #10B981;">Now Showing</span>
+                    {% elif m.status == 'coming_soon' %}
+                    <span class="badge" style="background: rgba(245,158,11,0.15); color: #F59E0B; border: 1px solid #F59E0B;">Upcoming</span>
+                    {% else %}
+                    <span class="badge" style="background: rgba(255,255,255,0.08); color: var(--text-muted);">Ended</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button onclick="openEditMovieModal('{{ m.id or m._id }}', '{{ m.title|e }}', '{{ m.poster_url|e }}', '{{ m.banner_url|e }}', '{{ m.language|e }}', '{{ m.duration|e }}', '{{ m.rating }}', '{{ m.certificate|e }}', '{{ m.status|e }}')" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">Edit</button>
+                        <form action="{{ url_for('admin_bp.delete_movie', movie_id=m.id or m._id) }}" method="POST" onsubmit="return confirm('Delete movie {{ m.title }} and all associated showtimes?');" style="display: inline;">
+                            <button type="submit" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; color: #EF4444;" title="Delete Movie"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No movies in database.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Movie Modal -->
+<div id="add-movie-modal" class="admin-modal-overlay">
+    <div class="admin-modal">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <h3 style="font-size: 1.2rem; font-weight: 800; margin: 0;">Add New Movie</h3>
+            <button onclick="closeModal('add-movie-modal')" style="background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer;">&times;</button>
+        </div>
+
+        <form action="{{ url_for('admin_bp.add_movie') }}" method="POST">
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label class="form-label">Movie Title</label>
+                <input type="text" name="title" class="form-control" placeholder="e.g. AVATAR 3" required>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label class="form-label">Poster Image URL</label>
+                    <input type="url" name="poster_url" class="form-control" placeholder="https://..." required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Banner Image URL</label>
+                    <input type="url" name="banner_url" class="form-control" placeholder="https://...">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label class="form-label">Language</label>
+                    <input type="text" name="language" class="form-control" placeholder="English, Malayalam, etc." value="English" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Duration</label>
+                    <input type="text" name="duration" class="form-control" placeholder="2h 30m" value="2h 15m">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label class="form-label">Genre</label>
+                    <input type="text" name="genre" class="form-control" placeholder="Action, Sci-Fi" value="Action">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Certificate</label>
+                    <select name="certificate" class="form-control" style="background: var(--bg-surface); color: #fff;">
+                        <option value="U">U</option>
+                        <option value="UA" selected>UA</option>
+                        <option value="A">A</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Rating (1-5)</label>
+                    <input type="number" step="0.1" name="rating" class="form-control" value="4.8" min="1" max="5">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-control" style="background: var(--bg-surface); color: #fff;">
+                    <option value="now_showing" selected>Now Showing</option>
+                    <option value="coming_soon">Upcoming / Coming Soon</option>
+                    <option value="ended">Ended</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label">Description / Synopsis</label>
+                <textarea name="description" class="form-control" rows="3" placeholder="Brief movie storyline..."></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; padding: 0.8rem;">Add Movie to Catalog</button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Movie Modal -->
+<div id="edit-movie-modal" class="admin-modal-overlay">
+    <div class="admin-modal">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <h3 style="font-size: 1.2rem; font-weight: 800; margin: 0;">Edit Movie Details</h3>
+            <button onclick="closeModal('edit-movie-modal')" style="background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer;">&times;</button>
+        </div>
+
+        <form id="edit-movie-form" action="" method="POST">
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label class="form-label">Movie Title</label>
+                <input type="text" id="edit-title" name="title" class="form-control" required>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label class="form-label">Poster Image URL</label>
+                    <input type="url" id="edit-poster" name="poster_url" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Banner Image URL</label>
+                    <input type="url" id="edit-banner" name="banner_url" class="form-control">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label class="form-label">Language</label>
+                    <input type="text" id="edit-language" name="language" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Duration</label>
+                    <input type="text" id="edit-duration" name="duration" class="form-control">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label class="form-label">Rating</label>
+                    <input type="number" step="0.1" id="edit-rating" name="rating" class="form-control" min="1" max="5">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select id="edit-status" name="status" class="form-control" style="background: var(--bg-surface); color: #fff;">
+                        <option value="now_showing">Now Showing</option>
+                        <option value="coming_soon">Upcoming</option>
+                        <option value="ended">Ended</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; padding: 0.8rem;">Save Changes</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+}
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+function openEditMovieModal(id, title, poster, banner, language, duration, rating, certificate, status) {
+    document.getElementById('edit-movie-form').action = `/admin/movies/edit/${id}`;
+    document.getElementById('edit-title').value = title;
+    document.getElementById('edit-poster').value = poster;
+    document.getElementById('edit-banner').value = banner;
+    document.getElementById('edit-language').value = language;
+    document.getElementById('edit-duration').value = duration;
+    document.getElementById('edit-rating').value = rating;
+    document.getElementById('edit-status').value = status;
+    openModal('edit-movie-modal');
+}
+</script>
+{% endblock %}

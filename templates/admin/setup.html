@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Setup - CineTickets{% endblock %}
+
+{% block content %}
+<div class="auth-container" style="max-width: 500px; margin: 2rem auto; background: var(--bg-card); padding: 2.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); box-shadow: var(--shadow-card);">
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <i class="fa-solid fa-shield-halved" style="font-size: 2.5rem; color: var(--primary-red); margin-bottom: 0.5rem;"></i>
+        <h2 style="font-size: 1.75rem; font-weight: 800;">First Admin Setup</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Initialize administrator account for CineTickets</p>
+    </div>
+
+    {% if existing_admin_count > 0 %}
+    <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid #F59E0B; color: #F59E0B; padding: 1rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 1.5rem; font-size: 0.9rem;">
+        <i class="fa-solid fa-circle-exclamation"></i> An administrator account already exists. Public admin creation is disabled.
+    </div>
+    <div style="text-align: center;">
+        <a href="{{ url_for('auth_bp.login_page') }}" class="btn-primary" style="padding: 0.75rem 1.5rem;">Log In as Admin</a>
+    </div>
+    {% else %}
+    <form action="{{ url_for('admin_bp.admin_setup') }}" method="POST">
+        <div class="form-group" style="margin-bottom: 1rem;">
+            <label class="form-label">ADMIN SETUP KEY (from .env)</label>
+            <input type="password" name="setup_key" class="form-control" placeholder="Enter ADMIN_SETUP_KEY" required>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+            <label class="form-label">Admin Full Name</label>
+            <input type="text" name="name" class="form-control" placeholder="System Administrator" required>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+            <label class="form-label">Admin Email Address</label>
+            <input type="email" name="email" class="form-control" placeholder="admin@cinetickets.com" required>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+            <label class="form-label">Phone Number</label>
+            <input type="text" name="phone" class="form-control" placeholder="+91 9876543210">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label class="form-label">Password</label>
+            <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" class="btn-primary" style="width: 100%; padding: 0.8rem;">Initialize Administrator</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

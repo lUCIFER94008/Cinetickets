@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Explore Movies - CineTickets{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <div>
+        <h1 class="section-title" style="font-size: 2rem;">Explore Movies</h1>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Find the latest blockbusters and upcoming cinematic releases</p>
+    </div>
+</div>
+
+<!-- Filters & Search Form -->
+<form action="{{ url_for('movie_bp.movies_page') }}" method="GET" style="background: var(--bg-card); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); margin-bottom: 2.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+    <div>
+        <label class="form-label">Search</label>
+        <input type="text" name="search" class="form-control" placeholder="Search by title..." value="{{ current_search or '' }}">
+    </div>
+    <div>
+        <label class="form-label">Genre</label>
+        <select name="genre" class="form-control">
+            <option value="">All Genres</option>
+            <option value="Action" {% if current_genre == 'Action' %}selected{% endif %}>Action</option>
+            <option value="Drama" {% if current_genre == 'Drama' %}selected{% endif %}>Drama</option>
+            <option value="Sci-Fi" {% if current_genre == 'Sci-Fi' %}selected{% endif %}>Sci-Fi</option>
+            <option value="Comedy" {% if current_genre == 'Comedy' %}selected{% endif %}>Comedy</option>
+            <option value="Animation" {% if current_genre == 'Animation' %}selected{% endif %}>Animation</option>
+        </select>
+    </div>
+    <div>
+        <label class="form-label">Sort By</label>
+        <select name="sort" class="form-control">
+            <option value="release_date" {% if current_sort == 'release_date' %}selected{% endif %}>Latest Release</option>
+            <option value="rating" {% if current_sort == 'rating' %}selected{% endif %}>Highest Rating</option>
+            <option value="name" {% if current_sort == 'name' %}selected{% endif %}>Alphabetical</option>
+        </select>
+    </div>
+    <div style="display: flex; align-items: flex-end;">
+        <button type="submit" class="btn-primary" style="width: 100%; height: 42px;"><i class="fa-solid fa-filter"></i> Apply Filters</button>
+    </div>
+</form>
+
+<div class="movie-grid">
+    {% for movie in movies %}
+    <div class="movie-card">
+        <div class="poster-wrapper">
+            <img src="{{ movie.poster_url or movie.poster or url_for('static', filename='images/movies/default-movie.jpg') }}" alt="{{ movie.title }}" class="movie-poster" onerror="this.onerror=null; this.src='/static/images/movies/default-movie.jpg';">
+            <div class="rating-badge"><i class="fa-solid fa-star"></i> {{ movie.rating }}</div>
+        </div>
+        <div class="movie-card-info">
+            <div>
+                <h3 class="card-title">{{ movie.title }}</h3>
+                <p class="card-meta">{{ movie.certificate }} • {{ movie.language }} • {{ movie.genre|join(', ') if movie.genre is iterable and movie.genre is not string else movie.genre }}</p>
+            </div>
+            <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}" class="btn-primary" style="width: 100%; font-size: 0.85rem; padding: 0.5rem; text-align: center;">
+                {% if movie.status == 'now_showing' %}Book Tickets{% else %}View Details{% endif %}
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted);">
+        <i class="fa-solid fa-film" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+        <p>No movies matched your search criteria.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
