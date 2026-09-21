@@ -207,13 +207,13 @@
 {% block content %}
 <div class="ticket-wrapper">
     <!-- Top Action Bar -->
-    <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-        <a href="javascript:history.back()" style="color: var(--text-muted); font-size: 0.9rem;"><i class="fa-solid fa-arrow-left"></i> Back</a>
-        <div style="display: flex; gap: 0.6rem;">
-            <button onclick="window.print()" class="btn-primary" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">
+    <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+        <a href="javascript:history.back()" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;"><i class="fa-solid fa-arrow-left"></i> Back</a>
+        <div style="display: flex; gap: 0.6rem; align-items: center;">
+            <button onclick="window.print()" class="btn-primary" style="padding: 0.55rem 1.25rem; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.45rem;">
                 <i class="fa-solid fa-download"></i> DOWNLOAD
             </button>
-            <a href="{{ url_for('booking_bp.user_bookings') }}" class="btn-secondary" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">
+            <a href="{{ url_for('booking_bp.user_bookings') }}" class="btn-secondary" style="padding: 0.55rem 1.25rem; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.45rem;">
                 MY BOOKINGS
             </a>
         </div>
