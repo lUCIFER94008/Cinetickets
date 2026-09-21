@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta, date
 from services.mongodb_service import get_db
 from utils.db_helpers import to_object_id, serialize_doc
 
@@ -293,16 +293,177 @@ class AdminService:
         return True, "Showtime deleted successfully."
 
     # Booking & Payment Management
+    def normalize_booking(self, b):
+        b = serialize_doc(b)
+        if not isinstance(b, dict):
+            return b
+        b['booking_id'] = b.get('booking_id') or b.get('bookingId') or ''
+        b['transaction_id'] = b.get('transaction_id') or b.get('transactionId') or b.get('booking_id') or b.get('bookingId') or ''
+        b['movie_title'] = b.get('movie_title') or b.get('movieTitle') or 'Movie Ticket'
+        b['movie_poster'] = b.get('movie_poster') or b.get('moviePoster') or ''
+        b['theatre_name'] = b.get('theatre_name') or b.get('theatreName') or 'Cinema'
+        b['location'] = b.get('location') or ''
+        b['date'] = b.get('date') or b.get('show_date') or b.get('booking_date') or ''
+        b['time'] = b.get('time') or b.get('showtime') or b.get('show_time') or ''
+        b['showtime'] = b['time']
+        
+        seats = b.get('seats') or []
+        if isinstance(seats, str):
+            seats = [s.strip() for s in seats.split(',') if s.strip()]
+        b['seats'] = seats
+        b['ticket_count'] = b.get('ticket_count') or len(seats)
+        
+        try:
+            b['total_amount'] = float(b.get('total_amount') or b.get('totalAmount') or 0.0)
+        except (ValueError, TypeError):
+            b['total_amount'] = 0.0
+
+        b['booking_status'] = (b.get('booking_status') or b.get('bookingStatus') or 'confirmed').lower()
+        b['payment_status'] = (b.get('payment_status') or b.get('paymentStatus') or 'paid').lower()
+        b['screen'] = b.get('screen') or 'Screen 1'
+        return b
+
+    def _parse_time_mins(self, time_str):
+        if not time_str:
+            return 99999
+        t_clean = str(time_str).strip().upper()
+        for fmt in ('%I:%M %p', '%I:%M%p', '%H:%M'):
+            try:
+                dt = datetime.strptime(t_clean, fmt)
+                return dt.hour * 60 + dt.minute
+            except ValueError:
+                pass
+        return 99999
+
+    def get_admin_bookings_filtered(self, date_str=None, start_date_str=None, status='all', search=None):
+        db = get_db()
+        today = datetime.now()
+        today_str = today.strftime('%Y-%m-%d')
+
+        if not date_str:
+            date_str = today_str
+
+        try:
+            selected_date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        except Exception:
+            selected_date_obj = today
+            date_str = today_str
+
+        if start_date_str:
+            try:
+                start_date_obj = datetime.strptime(start_date_str, '%Y-%m-%d')
+            except Exception:
+                start_date_obj = selected_date_obj - timedelta(days=selected_date_obj.weekday())
+        else:
+            start_date_obj = selected_date_obj - timedelta(days=selected_date_obj.weekday())
+
+        start_date_str = start_date_obj.strftime('%Y-%m-%d')
+        end_date_obj = start_date_obj + timedelta(days=6)
+        end_date_str = end_date_obj.strftime('%Y-%m-%d')
+
+        week_days = []
+        week_dates = []
+        for i in range(7):
+            d = start_date_obj + timedelta(days=i)
+            d_str = d.strftime('%Y-%m-%d')
+            week_dates.append(d_str)
+            week_days.append({
+                'date_str': d_str,
+                'day_name': d.strftime('%a').upper(),
+                'day_num': d.strftime('%d'),
+                'month_name': d.strftime('%b').upper(),
+                'full_formatted': d.strftime('%A, %d %B %Y'),
+                'is_selected': (d_str == date_str),
+                'is_today': (d_str == today_str)
+            })
+
+        window_raw_bookings = list(db.bookings.find({
+            '$or': [
+                {'date': {'$in': week_dates}},
+                {'show_date': {'$in': week_dates}}
+            ]
+        }))
+
+        weekly_counts = {d_str: 0 for d_str in week_dates}
+        for rb in window_raw_bookings:
+            b_date = rb.get('date') or rb.get('show_date') or ''
+            if b_date in weekly_counts:
+                weekly_counts[b_date] += 1
+
+        for wd in week_days:
+            wd['count'] = weekly_counts.get(wd['date_str'], 0)
+
+        query = {
+            '$or': [
+                {'date': date_str},
+                {'show_date': date_str}
+            ]
+        }
+
+        if status and status.lower() != 'all':
+            query['$and'] = [
+                {
+                    '$or': [
+                        {'booking_status': {'$regex': f"^{status}$", '$options': 'i'}},
+                        {'bookingStatus': {'$regex': f"^{status}$", '$options': 'i'}}
+                    ]
+                }
+            ]
+
+        raw_bookings = list(db.bookings.find(query))
+        normalized = [self.normalize_booking(b) for b in raw_bookings]
+
+        if search and search.strip():
+            s_term = search.strip().lower()
+            filtered = []
+            for b in normalized:
+                match_id = s_term in b.get('booking_id', '').lower()
+                match_txn = s_term in b.get('transaction_id', '').lower()
+                match_movie = s_term in b.get('movie_title', '').lower()
+                match_theatre = s_term in b.get('theatre_name', '').lower()
+                if match_id or match_txn or match_movie or match_theatre:
+                    filtered.append(b)
+            normalized = filtered
+
+        normalized.sort(key=lambda b: (self._parse_time_mins(b.get('time')), str(b.get('created_at') or '')))
+
+        total_bookings = len(normalized)
+        seats_reserved = sum(b.get('ticket_count', 0) for b in normalized)
+        confirmed_count = sum(1 for b in normalized if b.get('booking_status') == 'confirmed')
+        total_revenue = sum(b.get('total_amount', 0.0) for b in normalized if b.get('booking_status') == 'confirmed')
+
+        formatted_date = selected_date_obj.strftime('%A, %d %B %Y')
+        range_formatted = f"{start_date_obj.strftime('%d %b')} – {end_date_obj.strftime('%d %b %Y')}"
+
+        return {
+            'selected_date': date_str,
+            'formatted_date': formatted_date,
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'range_formatted': range_formatted,
+            'prev_week_start': (start_date_obj - timedelta(days=7)).strftime('%Y-%m-%d'),
+            'next_week_start': (start_date_obj + timedelta(days=7)).strftime('%Y-%m-%d'),
+            'today_date': today_str,
+            'week_days': week_days,
+            'bookings': normalized,
+            'summary': {
+                'total_bookings': total_bookings,
+                'seats_reserved': seats_reserved,
+                'confirmed_count': confirmed_count,
+                'total_revenue': round(total_revenue, 2),
+                'total_revenue_formatted': f"₹{total_revenue:,.2f}"
+            }
+        }
+
     def get_all_bookings(self):
         db = get_db()
-        bookings = list(db.bookings.find().sort('created_at', -1))
-        return serialize_doc(bookings)
+        raw = list(db.bookings.find().sort('created_at', -1))
+        return [self.normalize_booking(b) for b in raw]
 
     def get_all_payments(self):
         db = get_db()
         payments = list(db.payments.find().sort('created_at', -1))
         
-        # Enrich payments with booking and user info if needed
         user_ids = list({p.get('user_id') for p in payments if p.get('user_id')})
         u_oids = [to_object_id(uid) for uid in user_ids if to_object_id(uid)]
         users_map = {u['_id']: serialize_doc(u) for u in db.users.find({'_id': {'$in': u_oids}})}

@@ -278,8 +278,34 @@ def delete_showtime(show_id):
 @admin_bp.route('/admin/bookings')
 @admin_required
 def admin_bookings():
-    bookings = admin_service.get_all_bookings()
-    return render_template('admin/bookings.html', bookings=bookings)
+    date_str = request.args.get('date')
+    start_date_str = request.args.get('start_date') or request.args.get('startDate')
+    status = request.args.get('status', 'all')
+    search = request.args.get('search', '')
+
+    data = admin_service.get_admin_bookings_filtered(
+        date_str=date_str,
+        start_date_str=start_date_str,
+        status=status,
+        search=search
+    )
+    return render_template('admin/bookings.html', data=data)
+
+@admin_bp.route('/api/admin/bookings', methods=['GET'])
+@admin_required
+def api_admin_bookings():
+    date_str = request.args.get('date')
+    start_date_str = request.args.get('start_date') or request.args.get('startDate')
+    status = request.args.get('status', 'all')
+    search = request.args.get('search', '')
+
+    data = admin_service.get_admin_bookings_filtered(
+        date_str=date_str,
+        start_date_str=start_date_str,
+        status=status,
+        search=search
+    )
+    return jsonify({'success': True, 'data': data})
 
 @admin_bp.route('/admin/payments')
 @admin_required

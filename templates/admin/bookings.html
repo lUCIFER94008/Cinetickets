@@ -1,54 +1,357 @@
 {% extends 'admin/base_admin.html' %}
 
-{% block title %}Booking Management - CineTickets Admin{% endblock %}
+{% block title %}Booking Ledger - CineTickets Admin{% endblock %}
 {% block header_title %}Customer Ticket Bookings History{% endblock %}
 
+{% block extra_css %}
+<style>
+.overview-day-card:hover {
+    border-color: rgba(229, 30, 42, 0.6) !important;
+    transform: translateY(-2px);
+}
+.date-selector-card:hover {
+    border-color: var(--primary-red) !important;
+    transform: translateY(-2px);
+}
+.empty-state-box {
+    text-align: center;
+    padding: 3.5rem 1.5rem;
+    background: #16181F;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-color);
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+<!-- Top Header & Description -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
     <div>
         <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-white);">Customer Ticket Sales</h2>
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Complete ledger of customer movie ticket transactions and seat reservations</p>
     </div>
 </div>
 
-<div class="admin-table-container">
-    <table class="admin-table">
-        <thead>
-            <tr>
-                <th>Booking ID</th>
-                <th>Transaction ID</th>
-                <th>Movie Title</th>
-                <th>Theatre Venue</th>
-                <th>Date &amp; Time</th>
-                <th>Seats Reserved</th>
-                <th>Total Amount</th>
-                <th>Booking Status</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for b in bookings %}
-            <tr>
-                <td style="font-family: monospace; font-weight: 700; color: var(--text-white);">{{ b.booking_id }}</td>
-                <td style="font-family: monospace; font-size: 0.85rem; color: var(--text-muted);">{{ b.transaction_id or 'CT20260908123456' }}</td>
-                <td style="font-weight: 700; color: var(--text-white);">{{ b.movie_title }}</td>
-                <td style="color: var(--text-muted); font-size: 0.88rem;">{{ b.theatre_name }} ({{ b.screen or 'Screen 1' }})</td>
-                <td style="font-size: 0.88rem; color: var(--text-muted);">{{ b.date }} • {{ b.time or b.showtime }}</td>
-                <td><span style="color: var(--primary-red); font-weight: 800;">{{ b.seats|join(', ') }}</span></td>
-                <td style="font-weight: 800; color: var(--text-white);">₹{{ "%.2f"|format(b.total_amount or 0.0) }}</td>
-                <td>
-                    <span class="badge" style="background: rgba(16,185,129,0.15); color: #10B981; border: 1px solid #10B981;">{{ b.booking_status|upper }}</span>
-                </td>
-                <td>
-                    <a href="{{ url_for('booking_bp.digital_ticket', booking_id=b.id or b._id) }}" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" target="_blank"><i class="fa-solid fa-ticket"></i> View Ticket</a>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 2rem;">No ticket bookings recorded in MongoDB.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- 1. Weekly Booking Overview Panel -->
+<div style="background: #16181F; border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <span style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; display: inline-flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-chart-line" style="color: var(--primary-red);"></i> WEEKLY BOOKING OVERVIEW
+        </span>
+        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;" id="rangeFormatted">{{ data.range_formatted }}</span>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.65rem; overflow-x: auto; padding-bottom: 0.2rem;" id="weeklyOverviewGrid">
+        {% for d in data.week_days %}
+        <div onclick="selectDate('{{ d.date_str }}')" class="overview-day-card {% if d.is_selected %}active-overview{% endif %}" style="background: {% if d.is_selected %}rgba(229,30,42,0.18){% else %}rgba(255,255,255,0.02){% endif %}; border: 1px solid {% if d.is_selected %}var(--primary-red){% else %}rgba(255,255,255,0.07){% endif %}; border-radius: var(--radius-md); padding: 0.75rem 0.4rem; text-align: center; cursor: pointer; transition: all 0.2s ease; min-width: 65px;">
+            <div style="font-size: 0.72rem; font-weight: 800; color: {% if d.is_selected %}var(--primary-red){% else %}var(--text-muted){% endif %};">{{ d.day_name }}</div>
+            <div style="font-size: 1.35rem; font-weight: 900; color: var(--text-white); margin: 0.15rem 0;">{{ d.count }}</div>
+            <div style="font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">BOOKINGS</div>
+        </div>
+        {% endfor %}
+    </div>
 </div>
+
+<!-- 2. Date Navigation Controls Bar -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.75rem;">
+    <button onclick="goToToday()" class="btn-secondary" style="padding: 0.45rem 1rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+        <i class="fa-solid fa-calendar-day" style="color: var(--primary-red);"></i> TODAY
+    </button>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button onclick="changeWeek('{{ data.prev_week_start }}')" class="btn-secondary" style="padding: 0.45rem 0.9rem; font-size: 0.82rem; cursor: pointer;" title="Previous 7 Days">
+            <i class="fa-solid fa-chevron-left"></i> Previous Week
+        </button>
+        <button onclick="changeWeek('{{ data.next_week_start }}')" class="btn-secondary" style="padding: 0.45rem 0.9rem; font-size: 0.82rem; cursor: pointer;" title="Next 7 Days">
+            Next Week <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    </div>
+</div>
+
+<!-- 3. 7-Day Date Selector Cards Grid -->
+<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.65rem; margin-bottom: 1.75rem; overflow-x: auto; padding-bottom: 0.4rem;" id="dateSelectorGrid">
+    {% for d in data.week_days %}
+    <div onclick="selectDate('{{ d.date_str }}')" class="date-selector-card {% if d.is_selected %}active-date-card{% endif %}" data-date="{{ d.date_str }}" style="background: {% if d.is_selected %}var(--primary-red){% else %}#16181F{% endif %}; border: 1px solid {% if d.is_selected %}var(--primary-red){% else %}var(--border-color){% endif %}; border-radius: var(--radius-lg); padding: 0.85rem 0.4rem; text-align: center; cursor: pointer; transition: all 0.2s ease; min-width: 70px; box-shadow: {% if d.is_selected %}0 6px 18px rgba(229,30,42,0.35){% else %}none{% endif %};">
+        <div style="font-size: 0.72rem; font-weight: 800; color: {% if d.is_selected %}#ffffff{% else %}var(--text-muted){% endif %}; text-transform: uppercase;">{{ d.day_name }}</div>
+        <div style="font-size: 1.5rem; font-weight: 900; color: #ffffff; line-height: 1.1; margin: 0.2rem 0;">{{ d.day_num }}</div>
+        <div style="font-size: 0.72rem; font-weight: 800; color: {% if d.is_selected %}rgba(255,255,255,0.9){% else %}var(--primary-red){% endif %}; text-transform: uppercase;">{{ d.month_name }}</div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- 4. Selected Date Heading & Search/Status Controls -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h3 style="font-size: 1.3rem; font-weight: 800; color: var(--text-white); margin: 0;" id="selectedDateHeading">Bookings for {{ data.formatted_date }}</h3>
+    </div>
+    <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+        <div style="position: relative;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem;"></i>
+            <input type="text" id="bookingSearchInput" onkeyup="handleSearchInput()" placeholder="Search ID, movie, theatre..." style="background: #16181F; border: 1px solid var(--border-color); color: var(--text-white); padding: 0.5rem 0.8rem 0.5rem 2.2rem; border-radius: var(--radius-md); font-size: 0.85rem; width: 230px; outline: none;">
+        </div>
+        <select id="statusFilterSelect" onchange="handleStatusChange()" style="background: #16181F; border: 1px solid var(--border-color); color: var(--text-white); padding: 0.5rem 0.8rem; border-radius: var(--radius-md); font-size: 0.85rem; outline: none; cursor: pointer;">
+            <option value="all">All Statuses</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="pending">Pending</option>
+        </select>
+    </div>
+</div>
+
+<!-- 5. Daily Summary Cards -->
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.75rem;" id="dailySummaryGrid">
+    <div style="background: #16181F; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.1rem; display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(229,30,42,0.15); color: var(--primary-red); display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+            <i class="fa-solid fa-ticket"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Total Bookings</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: var(--text-white);" id="statTotalBookings">{{ data.summary.total_bookings }}</div>
+        </div>
+    </div>
+    <div style="background: #16181F; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.1rem; display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(59,130,246,0.15); color: #3B82F6; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+            <i class="fa-solid fa-couch"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Seats Reserved</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: var(--text-white);" id="statSeatsReserved">{{ data.summary.seats_reserved }}</div>
+        </div>
+    </div>
+    <div style="background: #16181F; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.1rem; display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(16,185,129,0.15); color: #10B981; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+            <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Confirmed</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: var(--text-white);" id="statConfirmedCount">{{ data.summary.confirmed_count }}</div>
+        </div>
+    </div>
+    <div style="background: #16181F; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.1rem; display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(245,158,11,0.15); color: #F59E0B; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+            <i class="fa-solid fa-indian-rupee-sign"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Total Revenue</div>
+            <div style="font-size: 1.4rem; font-weight: 900; color: #10B981;" id="statTotalRevenue">{{ data.summary.total_revenue_formatted }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- 6. Booking Table & Empty State Container -->
+<div id="bookingTableContainer">
+    {% if data.bookings|length > 0 %}
+    <div class="admin-table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Booking ID</th>
+                    <th>Transaction ID</th>
+                    <th>Movie Title</th>
+                    <th>Theatre Venue</th>
+                    <th>Date &amp; Time</th>
+                    <th>Seats Reserved</th>
+                    <th>Total Amount</th>
+                    <th>Booking Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="bookingTableBody">
+                {% for b in data.bookings %}
+                <tr>
+                    <td style="font-family: monospace; font-weight: 700; color: var(--text-white);">{{ b.booking_id }}</td>
+                    <td style="font-family: monospace; font-size: 0.85rem; color: var(--text-muted);">{{ b.transaction_id or 'CT20260908123456' }}</td>
+                    <td style="font-weight: 700; color: var(--text-white);">{{ b.movie_title }}</td>
+                    <td style="color: var(--text-muted); font-size: 0.88rem;">{{ b.theatre_name }} ({{ b.screen or 'Screen 1' }})</td>
+                    <td style="font-size: 0.88rem; color: var(--text-muted);">{{ b.date }} • {{ b.time or b.showtime }}</td>
+                    <td><span style="color: var(--primary-red); font-weight: 800;">{{ b.seats|join(', ') }}</span></td>
+                    <td style="font-weight: 800; color: var(--text-white);">₹{{ "%.2f"|format(b.total_amount or 0.0) }}</td>
+                    <td>
+                        <span class="badge" style="background: rgba(16,185,129,0.15); color: #10B981; border: 1px solid #10B981;">{{ b.booking_status|upper }}</span>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('booking_bp.digital_ticket', booking_id=b.id or b._id) }}" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" target="_blank"><i class="fa-solid fa-ticket"></i> View Ticket</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state-box">
+        <div style="width: 64px; height: 64px; background: rgba(229,30,42,0.1); color: var(--primary-red); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 1rem;">
+            <i class="fa-solid fa-calendar-xmark"></i>
+        </div>
+        <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-white); margin-bottom: 0.3rem;">No bookings for this date</h3>
+        <p style="color: var(--primary-red); font-weight: 700; font-size: 0.95rem; margin-bottom: 0.5rem;" id="emptyStateDate">{{ data.formatted_date }}</p>
+        <p style="color: var(--text-muted); font-size: 0.88rem; max-width: 450px; margin: 0 auto;">There are currently no movie ticket bookings for this date.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentDate = "{{ data.selected_date }}";
+let currentStartDate = "{{ data.start_date }}";
+let searchTimeout = null;
+
+async function fetchAndRender(dateStr, startDateStr) {
+    if (dateStr) currentDate = dateStr;
+    if (startDateStr) currentStartDate = startDateStr;
+
+    const status = document.getElementById('statusFilterSelect').value;
+    const search = document.getElementById('bookingSearchInput').value;
+
+    // Update URL parameter without full page reload
+    const url = new URL(window.location);
+    url.searchParams.set('date', currentDate);
+    if (currentStartDate) url.searchParams.set('start_date', currentStartDate);
+    if (status && status !== 'all') url.searchParams.set('status', status); else url.searchParams.delete('status');
+    if (search) url.searchParams.set('search', search); else url.searchParams.delete('search');
+    window.history.pushState({}, '', url);
+
+    try {
+        const queryParams = new URLSearchParams({
+            date: currentDate,
+            start_date: currentStartDate,
+            status: status,
+            search: search
+        });
+        const res = await fetch('/api/admin/bookings?' + queryParams.toString());
+        const json = await res.json();
+
+        if (json.success && json.data) {
+            renderDashboard(json.data);
+        }
+    } catch (err) {
+        console.error("Failed to fetch bookings for date:", err);
+    }
+}
+
+function selectDate(dateStr) {
+    fetchAndRender(dateStr, currentStartDate);
+}
+
+function changeWeek(newStartDate) {
+    fetchAndRender(newStartDate, newStartDate);
+}
+
+function goToToday() {
+    const todayStr = "{{ data.today_date }}";
+    fetchAndRender(todayStr, "");
+}
+
+function handleSearchInput() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        fetchAndRender(currentDate, currentStartDate);
+    }, 300);
+}
+
+function handleStatusChange() {
+    fetchAndRender(currentDate, currentStartDate);
+}
+
+function renderDashboard(data) {
+    currentDate = data.selected_date;
+    currentStartDate = data.start_date;
+
+    // 1. Update Range Text
+    document.getElementById('rangeFormatted').innerText = data.range_formatted;
+
+    // 2. Re-render Weekly Overview Grid
+    const weeklyGrid = document.getElementById('weeklyOverviewGrid');
+    weeklyGrid.innerHTML = data.week_days.map(d => `
+        <div onclick="selectDate('${d.date_str}')" class="overview-day-card ${d.is_selected ? 'active-overview' : ''}" style="background: ${d.is_selected ? 'rgba(229,30,42,0.18)' : 'rgba(255,255,255,0.02)'}; border: 1px solid ${d.is_selected ? 'var(--primary-red)' : 'rgba(255,255,255,0.07)'}; border-radius: var(--radius-md); padding: 0.75rem 0.4rem; text-align: center; cursor: pointer; transition: all 0.2s ease; min-width: 65px;">
+            <div style="font-size: 0.72rem; font-weight: 800; color: ${d.is_selected ? 'var(--primary-red)' : 'var(--text-muted)'};">${d.day_name}</div>
+            <div style="font-size: 1.35rem; font-weight: 900; color: var(--text-white); margin: 0.15rem 0;">${d.count}</div>
+            <div style="font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">BOOKINGS</div>
+        </div>
+    `).join('');
+
+    // 3. Re-render Date Selector Cards Grid
+    const selectorGrid = document.getElementById('dateSelectorGrid');
+    selectorGrid.innerHTML = data.week_days.map(d => `
+        <div onclick="selectDate('${d.date_str}')" class="date-selector-card ${d.is_selected ? 'active-date-card' : ''}" data-date="${d.date_str}" style="background: ${d.is_selected ? 'var(--primary-red)' : '#16181F'}; border: 1px solid ${d.is_selected ? 'var(--primary-red)' : 'var(--border-color)'}; border-radius: var(--radius-lg); padding: 0.85rem 0.4rem; text-align: center; cursor: pointer; transition: all 0.2s ease; min-width: 70px; box-shadow: ${d.is_selected ? '0 6px 18px rgba(229,30,42,0.35)' : 'none'};">
+            <div style="font-size: 0.72rem; font-weight: 800; color: ${d.is_selected ? '#ffffff' : 'var(--text-muted)'}; text-transform: uppercase;">${d.day_name}</div>
+            <div style="font-size: 1.5rem; font-weight: 900; color: #ffffff; line-height: 1.1; margin: 0.2rem 0;">${d.day_num}</div>
+            <div style="font-size: 0.72rem; font-weight: 800; color: ${d.is_selected ? 'rgba(255,255,255,0.9)' : 'var(--primary-red)'}; text-transform: uppercase;">${d.month_name}</div>
+        </div>
+    `).join('');
+
+    // 4. Update Navigation Buttons
+    const navButtons = document.querySelectorAll('.btn-secondary');
+    navButtons.forEach(btn => {
+        if (btn.innerText.includes('Previous Week')) {
+            btn.setAttribute('onclick', `changeWeek('${data.prev_week_start}')`);
+        } else if (btn.innerText.includes('Next Week')) {
+            btn.setAttribute('onclick', `changeWeek('${data.next_week_start}')`);
+        }
+    });
+
+    // 5. Update Selected Date Title
+    document.getElementById('selectedDateHeading').innerText = "Bookings for " + data.formatted_date;
+
+    // 6. Update Daily Summary Cards
+    document.getElementById('statTotalBookings').innerText = data.summary.total_bookings;
+    document.getElementById('statSeatsReserved').innerText = data.summary.seats_reserved;
+    document.getElementById('statConfirmedCount').innerText = data.summary.confirmed_count;
+    document.getElementById('statTotalRevenue').innerText = data.summary.total_revenue_formatted;
+
+    // 7. Re-render Table or Empty State
+    const container = document.getElementById('bookingTableContainer');
+    if (data.bookings && data.bookings.length > 0) {
+        const tableRows = data.bookings.map(b => `
+            <tr>
+                <td style="font-family: monospace; font-weight: 700; color: var(--text-white);">${b.booking_id}</td>
+                <td style="font-family: monospace; font-size: 0.85rem; color: var(--text-muted);">${b.transaction_id || 'CT20260908123456'}</td>
+                <td style="font-weight: 700; color: var(--text-white);">${b.movie_title}</td>
+                <td style="color: var(--text-muted); font-size: 0.88rem;">${b.theatre_name} (${b.screen || 'Screen 1'})</td>
+                <td style="font-size: 0.88rem; color: var(--text-muted);">${b.date} • ${b.time || b.showtime}</td>
+                <td><span style="color: var(--primary-red); font-weight: 800;">${(b.seats || []).join(', ')}</span></td>
+                <td style="font-weight: 800; color: var(--text-white);">₹${parseFloat(b.total_amount || 0).toFixed(2)}</td>
+                <td>
+                    <span class="badge" style="background: rgba(16,185,129,0.15); color: #10B981; border: 1px solid #10B981;">${(b.booking_status || 'confirmed').toUpperCase()}</span>
+                </td>
+                <td>
+                    <a href="/ticket/${b.id || b._id}" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" target="_blank"><i class="fa-solid fa-ticket"></i> View Ticket</a>
+                </td>
+            </tr>
+        `).join('');
+
+        container.innerHTML = `
+            <div class="admin-table-container">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Booking ID</th>
+                            <th>Transaction ID</th>
+                            <th>Movie Title</th>
+                            <th>Theatre Venue</th>
+                            <th>Date &amp; Time</th>
+                            <th>Seats Reserved</th>
+                            <th>Total Amount</th>
+                            <th>Booking Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            </div>
+        `;
+    } else {
+        container.innerHTML = `
+            <div class="empty-state-box">
+                <div style="width: 64px; height: 64px; background: rgba(229,30,42,0.1); color: var(--primary-red); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 1rem;">
+                    <i class="fa-solid fa-calendar-xmark"></i>
+                </div>
+                <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-white); margin-bottom: 0.3rem;">No bookings for this date</h3>
+                <p style="color: var(--primary-red); font-weight: 700; font-size: 0.95rem; margin-bottom: 0.5rem;">${data.formatted_date}</p>
+                <p style="color: var(--text-muted); font-size: 0.88rem; max-width: 450px; margin: 0 auto;">There are currently no movie ticket bookings for this date.</p>
+            </div>
+        `;
+    }
+}
+</script>
 {% endblock %}
