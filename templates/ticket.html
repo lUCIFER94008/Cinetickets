@@ -210,13 +210,10 @@
     <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
         <a href="javascript:history.back()" style="color: var(--text-muted); font-size: 0.9rem;"><i class="fa-solid fa-arrow-left"></i> Back</a>
         <div style="display: flex; gap: 0.6rem;">
-            <button onclick="window.print()" class="btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
-                <i class="fa-solid fa-print"></i> PRINT TICKET
-            </button>
-            <button onclick="window.print()" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+            <button onclick="window.print()" class="btn-primary" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">
                 <i class="fa-solid fa-download"></i> DOWNLOAD
             </button>
-            <a href="{{ url_for('booking_bp.user_bookings') }}" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+            <a href="{{ url_for('booking_bp.user_bookings') }}" class="btn-secondary" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">
                 MY BOOKINGS
             </a>
         </div>
