@@ -196,6 +196,11 @@
                 </a>
             </li>
             <li class="admin-nav-item">
+                <a href="{{ url_for('admin_bp.admin_cities') }}" class="admin-nav-link {% if request.endpoint == 'admin_bp.admin_cities' %}active{% endif %}">
+                    <i class="fa-solid fa-map-location-dot"></i> Cities
+                </a>
+            </li>
+            <li class="admin-nav-item">
                 <a href="{{ url_for('admin_bp.admin_theatres') }}" class="admin-nav-link {% if request.endpoint == 'admin_bp.admin_theatres' %}active{% endif %}">
                     <i class="fa-solid fa-building-user"></i> Theatres
                 </a>

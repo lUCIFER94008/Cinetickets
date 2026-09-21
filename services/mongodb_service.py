@@ -29,13 +29,18 @@ def create_indexes(database=None):
     global _indexes_created
     if _indexes_created:
         return
-    database = database or db
+    if database is None:
+        database = db
     if database is None:
         return
     try:
         database.users.create_index([("email", ASCENDING)], unique=True)
         database.bookings.create_index([("booking_id", ASCENDING)], unique=True, sparse=True)
         database.bookings.create_index([("user_id", ASCENDING)])
+        database.cities.create_index([("name", ASCENDING)], unique=True, sparse=True)
+        database.theatres.create_index([("city", ASCENDING)])
+        database.theatres.create_index([("city_id", ASCENDING)], sparse=True)
+        database.theatres.create_index([("name", ASCENDING)])
         database.shows.create_index([("movie_id", ASCENDING)])
         database.shows.create_index([("theatre_id", ASCENDING)])
         database.shows.create_index([("date", ASCENDING)])

@@ -2,6 +2,7 @@ import os
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
 from services.mongodb_service import get_db
 from services.admin_service import admin_service
+from services.theatre_service import theatre_service
 from services.show_service import show_service
 from services.seat_service import seat_service
 from utils.auth import admin_required, get_current_user
@@ -72,6 +73,54 @@ def admin_dashboard():
     recent_bookings = admin_service.get_all_bookings()[:5]
     return render_template('admin/dashboard.html', stats=stats, recent_bookings=recent_bookings)
 
+# City Management
+@admin_bp.route('/admin/cities')
+@admin_required
+def admin_cities():
+    cities = theatre_service.get_cities(active_only=False)
+    return render_template('admin/cities.html', cities=cities)
+
+@admin_bp.route('/admin/cities/add', methods=['POST'])
+@admin_required
+def add_city():
+    data = request.form.to_dict() if request.form else (request.get_json() or {})
+    name = data.get('name', '').strip()
+    state = data.get('state', 'Kerala').strip()
+    district = data.get('district', name).strip()
+    is_district = 'is_district' in data or data.get('is_district') == True
+    active = 'active' in data or data.get('active') == True
+
+    if not name:
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'City name is required'}), 400
+        flash("City name is required.", "danger")
+        return redirect(url_for('admin_bp.admin_cities'))
+
+    success, msg, city = theatre_service.create_city(name, state=state, district=district, is_district=is_district, active=active)
+    if request.is_json:
+        return jsonify({'success': success, 'message': msg, 'city': city})
+    flash(msg, 'success' if success else 'danger')
+    return redirect(url_for('admin_bp.admin_cities'))
+
+@admin_bp.route('/admin/cities/edit/<city_id>', methods=['POST'])
+@admin_required
+def edit_city(city_id):
+    data = request.form.to_dict() if request.form else (request.get_json() or {})
+    success, msg = theatre_service.update_city(city_id, data)
+    if request.is_json:
+        return jsonify({'success': success, 'message': msg})
+    flash(msg, 'success' if success else 'danger')
+    return redirect(url_for('admin_bp.admin_cities'))
+
+@admin_bp.route('/admin/cities/delete/<city_id>', methods=['POST'])
+@admin_required
+def delete_city(city_id):
+    success, msg = theatre_service.delete_city(city_id)
+    if request.is_json:
+        return jsonify({'success': success, 'message': msg})
+    flash(msg, 'success' if success else 'danger')
+    return redirect(url_for('admin_bp.admin_cities'))
+
 # User Management
 @admin_bp.route('/admin/users')
 @admin_required
@@ -134,37 +183,41 @@ def delete_movie(movie_id):
     flash(msg, 'success' if success else 'danger')
     return redirect(url_for('admin_bp.admin_movies'))
 
-# Theatre Management
+# Theatre Management & REST APIs
 @admin_bp.route('/admin/theatres')
 @admin_required
 def admin_theatres():
-    theatres = admin_service.get_all_theatres()
-    return render_template('admin/theatres.html', theatres=theatres)
+    theatres = theatre_service.get_theatres(active_only=False)
+    cities = theatre_service.get_cities()
+    return render_template('admin/theatres.html', theatres=theatres, cities=cities)
 
 @admin_bp.route('/admin/theatres/add', methods=['POST'])
+@admin_bp.route('/api/theatres', methods=['POST'])
 @admin_required
 def add_theatre():
     data = request.form.to_dict() if request.form else (request.get_json() or {})
-    success, res = admin_service.add_theatre(data)
+    success, msg, res = theatre_service.create_theatre(data)
     if request.is_json:
-        return jsonify({'success': success, 'result': res if success else None, 'message': res if not success else 'Theatre added successfully'})
-    flash('Theatre added successfully!' if success else str(res), 'success' if success else 'danger')
+        return jsonify({'success': success, 'message': msg, 'theatre': res})
+    flash(msg, 'success' if success else 'danger')
     return redirect(url_for('admin_bp.admin_theatres'))
 
 @admin_bp.route('/admin/theatres/edit/<theatre_id>', methods=['POST'])
+@admin_bp.route('/api/theatres/<theatre_id>', methods=['PUT'])
 @admin_required
 def edit_theatre(theatre_id):
     data = request.form.to_dict() if request.form else (request.get_json() or {})
-    success, res = admin_service.update_theatre(theatre_id, data)
+    success, msg = theatre_service.update_theatre(theatre_id, data)
     if request.is_json:
-        return jsonify({'success': success, 'result': res if success else None, 'message': res if not success else 'Theatre updated successfully'})
-    flash('Theatre updated successfully!' if success else str(res), 'success' if success else 'danger')
+        return jsonify({'success': success, 'message': msg})
+    flash(msg, 'success' if success else 'danger')
     return redirect(url_for('admin_bp.admin_theatres'))
 
 @admin_bp.route('/admin/theatres/delete/<theatre_id>', methods=['POST'])
+@admin_bp.route('/api/theatres/<theatre_id>', methods=['DELETE'])
 @admin_required
 def delete_theatre(theatre_id):
-    success, msg = admin_service.delete_theatre(theatre_id)
+    success, msg = theatre_service.delete_theatre(theatre_id)
     if request.is_json:
         return jsonify({'success': success, 'message': msg})
     flash(msg, 'success' if success else 'danger')
@@ -176,8 +229,9 @@ def delete_theatre(theatre_id):
 def admin_showtimes():
     shows = show_service.get_shows()
     movies = admin_service.get_all_movies()
-    theatres = admin_service.get_all_theatres()
-    return render_template('admin/showtimes.html', shows=shows, movies=movies, theatres=theatres)
+    theatres = theatre_service.get_theatres(active_only=False)
+    cities = theatre_service.get_cities()
+    return render_template('admin/showtimes.html', shows=shows, movies=movies, theatres=theatres, cities=cities)
 
 @admin_bp.route('/admin/showtimes/add', methods=['POST'])
 @admin_required
@@ -186,14 +240,20 @@ def add_showtime():
     movie_id = data.get('movie_id')
     theatre_id = data.get('theatre_id')
     screen = data.get('screen', 'Screen 1')
+    show_format = data.get('format', '2D')
     date_str = data.get('date')
     time_str = data.get('time')
     price = data.get('price', 220)
 
-    success, res = admin_service.add_showtime(movie_id, theatre_id, screen, date_str, time_str, price)
-    if request.is_json:
-        return jsonify({'success': success, 'result': res if success else None, 'message': res if not success else 'Showtime added successfully'})
-    flash('Showtime scheduled successfully!' if success else str(res), 'success' if success else 'danger')
+    show = show_service.find_or_create_show(movie_id, theatre_id, time_str, date_str=date_str, screen=screen, show_format=show_format, price=price)
+    if show:
+        if request.is_json:
+            return jsonify({'success': True, 'show': show, 'message': 'Showtime created successfully'})
+        flash('Showtime scheduled successfully!', 'success')
+    else:
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Failed to create showtime'}), 400
+        flash('Failed to schedule showtime.', 'danger')
     return redirect(url_for('admin_bp.admin_showtimes'))
 
 @admin_bp.route('/admin/showtimes/delete/<show_id>', methods=['POST'])

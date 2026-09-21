@@ -1,0 +1,161 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Manage Cities - CineTickets Admin{% endblock %}
+{% block header_title %}Kerala Cities &amp; Towns Management{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-white); margin: 0;">Kerala Locations ({{ cities|length }})</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Add, edit, or toggle active status for Kerala cities and cinema towns</p>
+    </div>
+    <button onclick="openAddCityModal()" class="btn-primary" style="padding: 0.65rem 1.4rem;">
+        <i class="fa-solid fa-plus"></i> Add New Location
+    </button>
+</div>
+
+<div class="admin-table-container">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>City / Town Name</th>
+                <th>District</th>
+                <th>State</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for city in cities %}
+            <tr>
+                <td style="font-weight: 700;">
+                    <i class="fa-solid fa-location-dot" style="color: var(--primary-red); margin-right: 6px;"></i>
+                    {{ city.name }}
+                </td>
+                <td>{{ city.district or city.name }}</td>
+                <td>{{ city.state or 'Kerala' }}</td>
+                <td>
+                    {% if city.is_district %}
+                        <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #3B82F6; border: 1px solid rgba(59, 130, 246, 0.3);">District</span>
+                    {% else %}
+                        <span class="badge badge-outline">Cinema Town</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if city.active %}
+                        <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3);">Active</span>
+                    {% else %}
+                        <span class="badge" style="background: rgba(107, 114, 128, 0.2); color: #9CA3AF; border: 1px solid rgba(107, 114, 128, 0.3);">Disabled</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button onclick="openEditCityModal('{{ city.id or city._id }}', '{{ city.name }}', '{{ city.district }}', '{{ city.state }}', {{ 'true' if city.is_district else 'false' }}, {{ 'true' if city.active else 'false' }})" class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;">
+                            <i class="fa-solid fa-pen"></i> Edit
+                        </button>
+                        <form action="{{ url_for('admin_bp.delete_city', city_id=city.id or city._id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete {{ city.name }}?');">
+                            <button type="submit" class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.78rem; color: #EF4444; border-color: rgba(239, 68, 68, 0.3);">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No cities found in database.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add City Modal -->
+<div class="admin-modal-overlay" id="addCityModal">
+    <div class="admin-modal">
+        <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-white); margin-bottom: 1.25rem;">Add New Location</h3>
+        <form action="{{ url_for('admin_bp.add_city') }}" method="POST">
+            <div class="form-group">
+                <label class="form-label">City / Town Name *</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g., Kozhikode, Aluva" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">District Name</label>
+                <input type="text" name="district" class="form-control" placeholder="e.g., Kozhikode, Ernakulam">
+            </div>
+            <div class="form-group">
+                <label class="form-label">State</label>
+                <input type="text" name="state" class="form-control" value="Kerala" required>
+            </div>
+            <div class="form-group" style="display: flex; gap: 1.5rem; margin-top: 1rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--text-white); cursor: pointer;">
+                    <input type="checkbox" name="is_district" value="true"> Is Major District Center
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--text-white); cursor: pointer;">
+                    <input type="checkbox" name="active" value="true" checked> Active Location
+                </label>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" onclick="closeAddCityModal()" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Save City</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit City Modal -->
+<div class="admin-modal-overlay" id="editCityModal">
+    <div class="admin-modal">
+        <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-white); margin-bottom: 1.25rem;">Edit Location</h3>
+        <form id="editCityForm" method="POST">
+            <div class="form-group">
+                <label class="form-label">City / Town Name *</label>
+                <input type="text" id="editCityName" name="name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">District Name</label>
+                <input type="text" id="editCityDistrict" name="district" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">State</label>
+                <input type="text" id="editCityState" name="state" class="form-control" required>
+            </div>
+            <div class="form-group" style="display: flex; gap: 1.5rem; margin-top: 1rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--text-white); cursor: pointer;">
+                    <input type="checkbox" id="editCityIsDistrict" name="is_district" value="true"> Is Major District Center
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--text-white); cursor: pointer;">
+                    <input type="checkbox" id="editCityActive" name="active" value="true"> Active Location
+                </label>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" onclick="closeEditCityModal()" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Update Location</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openAddCityModal() {
+    document.getElementById('addCityModal').style.display = 'flex';
+}
+function closeAddCityModal() {
+    document.getElementById('addCityModal').style.display = 'none';
+}
+
+function openEditCityModal(id, name, district, state, isDistrict, active) {
+    document.getElementById('editCityForm').action = "/admin/cities/edit/" + id;
+    document.getElementById('editCityName').value = name;
+    document.getElementById('editCityDistrict').value = district || name;
+    document.getElementById('editCityState').value = state || 'Kerala';
+    document.getElementById('editCityIsDistrict').checked = isDistrict;
+    document.getElementById('editCityActive').checked = active;
+    document.getElementById('editCityModal').style.display = 'flex';
+}
+function closeEditCityModal() {
+    document.getElementById('editCityModal').style.display = 'none';
+}
+</script>
+{% endblock %}

@@ -6,24 +6,41 @@ from services.seat_service import seat_service
 
 movie_bp = Blueprint('movie_bp', __name__)
 
+def _get_current_city():
+    city = request.args.get('city') or request.cookies.get('selected_city') or 'Kochi'
+    return city.strip()
+
 @movie_bp.route('/movies')
 def movies_page():
     status = request.args.get('status')
     genre = request.args.get('genre')
     search = request.args.get('search')
     sort_by = request.args.get('sort')
+    selected_city = _get_current_city()
+    cities = theatre_service.get_cities()
 
     movies = movie_service.get_movies(status=status, genre=genre, search=search, sort_by=sort_by)
-    return render_template('movies.html', movies=movies, current_search=search, current_genre=genre, current_sort=sort_by)
+    return render_template(
+        'movies.html',
+        movies=movies,
+        current_search=search,
+        current_genre=genre,
+        current_sort=sort_by,
+        cities=cities,
+        selected_city=selected_city
+    )
 
 @movie_bp.route('/movie/<movie_id>')
 def movie_details(movie_id):
+    selected_city = _get_current_city()
     movie = movie_service.get_movie_by_id(movie_id)
     if not movie:
         return render_template('error.html', error_message="Movie not found."), 404
 
-    shows = show_service.get_shows(movie_id=movie_id)
-    theatres = theatre_service.get_theatres()
+    shows = show_service.get_shows(movie_id=movie_id, city=selected_city)
+    theatres = theatre_service.get_theatres(city=selected_city)
+    cities = theatre_service.get_cities()
+
     reviews = movie_service.get_reviews(movie_id) or []
     review_stats = movie_service.get_review_stats(movie_id) or {
         'total': 0,
@@ -40,6 +57,8 @@ def movie_details(movie_id):
         movie=movie,
         shows=shows,
         theatres=theatres,
+        cities=cities,
+        selected_city=selected_city,
         reviews=reviews,
         review_stats=review_stats,
         user_logged_in=user_logged_in,
@@ -68,10 +87,19 @@ def add_movie_review(movie_id):
 @movie_bp.route('/showtimes')
 def showtimes_page():
     movie_id = request.args.get('movie_id')
+    selected_city = _get_current_city()
     movie = movie_service.get_movie_by_id(movie_id) if movie_id else None
-    shows = show_service.get_shows(movie_id=movie_id)
-    theatres = theatre_service.get_theatres()
-    return render_template('showtimes.html', movie=movie, shows=shows, theatres=theatres)
+    shows = show_service.get_shows(movie_id=movie_id, city=selected_city)
+    theatres = theatre_service.get_theatres(city=selected_city)
+    cities = theatre_service.get_cities()
+    return render_template(
+        'showtimes.html',
+        movie=movie,
+        shows=shows,
+        theatres=theatres,
+        cities=cities,
+        selected_city=selected_city
+    )
 
 # API Endpoints
 @movie_bp.route('/api/movies', methods=['GET'])
@@ -118,9 +146,10 @@ def api_get_shows():
     movie_id = request.args.get('movie_id') or request.args.get('movieId')
     theatre_id = request.args.get('theatre_id') or request.args.get('theatreId')
     date_str = request.args.get('date')
+    city = request.args.get('city') or _get_current_city()
 
-    shows = show_service.get_shows(movie_id=movie_id, theatre_id=theatre_id, date_str=date_str)
-    return jsonify({'success': True, 'shows': shows})
+    shows = show_service.get_shows(movie_id=movie_id, theatre_id=theatre_id, date_str=date_str, city=city)
+    return jsonify({'success': True, 'city': city, 'shows': shows, 'count': len(shows)})
 
 @movie_bp.route('/api/shows/<show_id>/seats', methods=['GET'])
 def api_get_show_seats(show_id):

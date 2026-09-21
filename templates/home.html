@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
 
-{% block title %}CineTickets - Premium Movie Ticket Booking{% endblock %}
+{% block title %}CineTickets - Premium Movie Ticket Booking in {{ selected_city or 'Kochi' }}{% endblock %}
 
 {% block content %}
-<!-- Top Search & Filter Bar (Moved above Hero as requested) -->
+<!-- Top Search & Filter Bar -->
 <div style="background-color: var(--bg-card); padding: 1.25rem 1.75rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); margin-bottom: 2rem; box-shadow: var(--shadow-card);">
     <form action="{{ url_for('movie_bp.movies_page') }}" method="GET" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+        <input type="hidden" name="city" value="{{ selected_city or 'Kochi' }}">
         <div style="position: relative; flex: 1; min-width: 260px;">
             <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1.1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1rem;"></i>
             <input type="text" name="search" class="form-control" placeholder="Search movies by title, genre, language..." style="padding-left: 2.8rem; height: 48px; background-color: var(--bg-input); border-radius: var(--radius-md); font-size: 0.95rem;">
@@ -42,7 +43,10 @@
 
 <!-- Now Showing Grid -->
 <div class="section-header">
-    <h2 class="section-title">Now Showing</h2>
+    <div>
+        <h2 class="section-title">Now Showing in {{ selected_city or 'Kochi' }}</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">Select a movie to view theatres and showtimes in {{ selected_city or 'Kochi' }}</p>
+    </div>
     <a href="{{ url_for('movie_bp.movies_page', status='now_showing') }}" style="color: var(--primary-red); font-weight: 600; font-size: 0.9rem;">View All <i class="fa-solid fa-chevron-right"></i></a>
 </div>
 
@@ -58,7 +62,7 @@
                 <h3 class="card-title">{{ movie.title }}</h3>
                 <p class="card-meta">{{ movie.certificate }} • {{ movie.language }} • {{ movie.genre|join(', ') if movie.genre is iterable and movie.genre is not string else movie.genre }}</p>
             </div>
-            <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}" class="btn-primary" style="width: 100%; font-size: 0.85rem; padding: 0.5rem;">Book Tickets</a>
+            <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}" class="btn-primary" style="width: 100%; font-size: 0.85rem; padding: 0.5rem; text-align: center;">Book Tickets</a>
         </div>
     </div>
     {% else %}
@@ -92,19 +96,46 @@
     {% endfor %}
 </div>
 
-<!-- Nearby Theatres Section -->
+<!-- Cinema Theatres in Selected City Section -->
 <div class="section-header" style="margin-top: 3rem;">
-    <h2 class="section-title">Popular Cinema Theatres in Kochi</h2>
+    <div>
+        <h2 class="section-title">Cinema Theatres in {{ selected_city or 'Kochi' }}</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">{{ theatres|length }} theatre(s) registered in {{ selected_city or 'Kochi' }}</p>
+    </div>
 </div>
-<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem;">
+
+{% if theatres and theatres|length > 0 %}
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem;">
     {% for theatre in theatres %}
-    <div style="background: var(--bg-card); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+    <div style="background: var(--bg-card); padding: 1.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem;">
         <div>
-            <h4 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.3rem;">{{ theatre.name }}</h4>
-            <p style="font-size: 0.85rem; color: var(--text-muted);"><i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> {{ theatre.address }}</p>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
+                <h4 style="font-size: 1.05rem; font-weight: 700;">{{ theatre.name }}</h4>
+                <span class="badge badge-outline" style="font-size: 0.7rem;">{{ theatre.distance or '2.5 km' }}</span>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;"><i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> {{ theatre.address }}</p>
+            <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                <span class="format-badge" style="background: rgba(229,30,42,0.1); border-color: rgba(229,30,42,0.3); color: var(--primary-red);">
+                    <i class="fa-solid fa-tv" style="font-size: 0.65rem;"></i> {{ theatre.screens or 2 }} Screen(s)
+                </span>
+                {% if theatre.formats %}
+                    {% for fmt in theatre.formats %}
+                    <span class="format-badge">{{ fmt }}</span>
+                    {% endfor %}
+                {% else %}
+                    <span class="format-badge">2D</span>
+                    <span class="format-badge">3D</span>
+                    <span class="format-badge">Dolby Atmos</span>
+                {% endif %}
+            </div>
         </div>
-        <span class="badge badge-outline">{{ theatre.distance or '3.5 km' }}</span>
     </div>
     {% endfor %}
 </div>
+{% else %}
+<div style="background-color: var(--bg-card); padding: 2rem; border-radius: var(--radius-lg); text-align: center; border: 1px dashed var(--border-color);">
+    <i class="fa-solid fa-building-circle-exclamation" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 0.75rem;"></i>
+    <p style="color: var(--text-muted);">No theatres currently listed for {{ selected_city or 'Kochi' }}. Change location from the top navbar to explore other Kerala cities.</p>
+</div>
+{% endif %}
 {% endblock %}

@@ -1,32 +1,88 @@
 {% extends 'base.html' %}
 
-{% block title %}Select Showtimes - CineTickets{% endblock %}
+{% block title %}Select Showtimes in {{ selected_city or 'Kochi' }} - CineTickets{% endblock %}
 
 {% block content %}
-<div class="section-header">
+<div class="section-header" style="margin-bottom: 2rem;">
     <div>
-        <h1 class="section-title" style="font-size: 2rem;">Select Showtimes</h1>
-        {% if movie %}<p style="color: var(--text-muted);">For: <strong style="color: #fff;">{{ movie.title }}</strong></p>{% endif %}
+        <h1 class="section-title" style="font-size: 2rem;">Select Showtimes in {{ selected_city or 'Kochi' }}</h1>
+        {% if movie %}
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.2rem;">Showing available theatres for <strong style="color: var(--text-white);">{{ movie.title }}</strong> in {{ selected_city or 'Kochi' }}</p>
+        {% else %}
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.2rem;">Browse all theatres &amp; showtimes operating in {{ selected_city or 'Kochi' }}</p>
+        {% endif %}
     </div>
 </div>
 
-{% for theatre in theatres %}
-<div style="background: var(--bg-card); padding: 1.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
-    <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.3rem;">{{ theatre.name }}</h3>
-    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;"><i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> {{ theatre.address }}</p>
+{% if theatres and theatres|length > 0 %}
+    {% for theatre in theatres %}
+    <div class="theatre-card-enhanced">
+        <div class="theatre-card-header">
+            <div>
+                <h3 class="theatre-name">{{ theatre.name }}</h3>
+                <div class="theatre-address">
+                    <i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i>
+                    {{ theatre.address }}
+                    {% if theatre.distance %} • {{ theatre.distance }}{% endif %}
+                </div>
+                <div class="format-badges">
+                    <span class="format-badge" style="background: rgba(229,30,42,0.15); border-color: rgba(229,30,42,0.3); color: var(--primary-red);">
+                        <i class="fa-solid fa-tv" style="font-size: 0.65rem;"></i> {{ theatre.screens or 2 }} Screen(s)
+                    </span>
+                    {% if theatre.formats %}
+                        {% for fmt in theatre.formats %}
+                        <span class="format-badge">{{ fmt }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="format-badge">2D</span>
+                        <span class="format-badge">3D</span>
+                        <span class="format-badge">Dolby Atmos</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
 
-    <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
-        {% for show in shows %}
-            {% if (show.theatre_id == theatre.id or show.theatre_id == theatre._id) or (show.theatre and (show.theatre.id == theatre.id or show.theatre.id == theatre._id)) %}
-                <a href="{{ url_for('booking_bp.seats_page', show_id=show.id or show._id) }}" class="btn-secondary" style="display: flex; flex-direction: column; align-items: center; padding: 0.6rem 1.2rem; text-align: center;">
-                    <span style="font-size: 0.95rem; font-weight: 700; color: var(--primary-red);">{{ show.time }}</span>
-                    <span style="font-size: 0.75rem; color: var(--text-muted);">{{ show.screen or 'Screen 1' }} • ₹{{ show.price or 220 }}</span>
+        <div class="showtimes-row">
+            {% set found_show = false %}
+            {% for show in shows %}
+                {% if (show.theatre_id == theatre.id or show.theatre_id == theatre._id) or (show.theatre and (show.theatre.id == theatre.id or show.theatre.id == theatre._id)) %}
+                    {% set found_show = true %}
+                    <a href="{{ url_for('booking_bp.seats_page', show_id=show.id or show._id) }}" class="showtime-pill-btn">
+                        <span class="showtime-pill-time">{{ show.time }}</span>
+                        <span class="showtime-pill-meta">{{ show.screen or 'Screen 1' }} • ₹{{ show.price or 220 }}</span>
+                    </a>
+                {% endif %}
+            {% endfor %}
+
+            {% if not found_show %}
+                <a href="{{ url_for('booking_bp.seats_page', movie_id=movie.id or (movie._id if movie else ''), theatre_id=theatre.id or theatre._id, showtime='10:00 AM') }}" class="showtime-pill-btn">
+                    <span class="showtime-pill-time">10:00 AM</span>
+                    <span class="showtime-pill-meta">Screen 1 • ₹180</span>
+                </a>
+                <a href="{{ url_for('booking_bp.seats_page', movie_id=movie.id or (movie._id if movie else ''), theatre_id=theatre.id or theatre._id, showtime='01:30 PM') }}" class="showtime-pill-btn">
+                    <span class="showtime-pill-time">01:30 PM</span>
+                    <span class="showtime-pill-meta">Screen 1 • ₹220</span>
+                </a>
+                <a href="{{ url_for('booking_bp.seats_page', movie_id=movie.id or (movie._id if movie else ''), theatre_id=theatre.id or theatre._id, showtime='05:00 PM') }}" class="showtime-pill-btn">
+                    <span class="showtime-pill-time">05:00 PM</span>
+                    <span class="showtime-pill-meta">Screen 2 • ₹250</span>
+                </a>
+                <a href="{{ url_for('booking_bp.seats_page', movie_id=movie.id or (movie._id if movie else ''), theatre_id=theatre.id or theatre._id, showtime='08:30 PM') }}" class="showtime-pill-btn">
+                    <span class="showtime-pill-time">08:30 PM</span>
+                    <span class="showtime-pill-meta">Screen 1 • ₹280</span>
                 </a>
             {% endif %}
-        {% endfor %}
+        </div>
     </div>
-</div>
+    {% endfor %}
 {% else %}
-<p style="color: var(--text-muted);">No theatres available.</p>
-{% endfor %}
+    <div style="background-color: var(--bg-card); padding: 2.5rem; border-radius: var(--radius-xl); text-align: center; border: 1px dashed var(--border-color);">
+        <i class="fa-solid fa-building-circle-xmark" style="font-size: 2.5rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+        <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">No Theatres Available in {{ selected_city or 'Kochi' }}</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.25rem;">Please switch location to another Kerala city using the navbar dropdown.</p>
+        <button type="button" class="btn-primary" onclick="document.getElementById('openLocationModalBtn').click();" style="padding: 0.6rem 1.4rem;">
+            <i class="fa-solid fa-location-dot"></i> Select Location
+        </button>
+    </div>
+{% endif %}
 {% endblock %}

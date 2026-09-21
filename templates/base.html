@@ -29,11 +29,12 @@
                 {% endif %}
             </ul>
 
-
             <div class="nav-actions">
-                <div class="location-picker">
+                <!-- Location Picker Button -->
+                <div class="location-picker" id="openLocationModalBtn" title="Select Kerala City">
                     <i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i>
-                    <span>Kochi</span>
+                    <span id="current-location-text">{{ selected_city or 'Kochi' }}</span>
+                    <i class="fa-solid fa-chevron-down" style="font-size: 0.75rem; margin-left: 4px; color: var(--text-muted);"></i>
                 </div>
 
                 {% if current_user %}
@@ -46,6 +47,54 @@
             </div>
         </div>
     </nav>
+
+    <!-- Kerala City Selector Modal -->
+    <div class="city-modal-overlay" id="cityModalOverlay">
+        <div class="city-modal-container">
+            <div class="city-modal-header">
+                <div class="city-modal-title">
+                    <i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i>
+                    Select Location (Kerala)
+                </div>
+                <button type="button" class="city-modal-close" id="closeCityModalBtn">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="city-modal-search">
+                <div class="city-search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="citySearchInput" placeholder="Search city or cinema town...">
+                </div>
+            </div>
+            <div class="city-modal-body">
+                <!-- District Cities -->
+                <div>
+                    <div class="city-section-label">Popular Districts</div>
+                    <div class="city-grid" id="districtCitiesGrid">
+                        {% set popular_districts = ['Kochi', 'Thiruvananthapuram', 'Kozhikode', 'Thrissur', 'Kollam', 'Kannur', 'Kottayam', 'Alappuzha', 'Palakkad', 'Malappuram', 'Kasaragod', 'Pathanamthitta', 'Idukki', 'Wayanad'] %}
+                        {% for city_name in popular_districts %}
+                        <button type="button" class="city-item-btn {% if (selected_city or 'Kochi') == city_name %}selected{% endif %}" data-city="{{ city_name }}">
+                            <i class="fa-solid fa-location-pin" style="font-size: 0.75rem;"></i> {{ city_name }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Major Cinema Towns -->
+                <div>
+                    <div class="city-section-label">Major Cinema Towns</div>
+                    <div class="city-grid" id="cinemaTownsGrid">
+                        {% set cinema_towns = ['Aluva', 'Angamaly', 'Perumbavur', 'Muvattupuzha', 'North Paravur', 'Changanassery', 'Pala', 'Thodupuzha', 'Guruvayur', 'Kunnamkulam', 'Chalakudy', 'Irinjalakuda', 'Kodungallur', 'Manjeri', 'Perinthalmanna', 'Tirur', 'Ponnani', 'Vadakara', 'Thalassery', 'Payyanur', 'Kanhangad'] %}
+                        {% for town_name in cinema_towns %}
+                        <button type="button" class="city-item-btn {% if (selected_city or 'Kochi') == town_name %}selected{% endif %}" data-city="{{ town_name }}">
+                            <i class="fa-solid fa-building" style="font-size: 0.75rem;"></i> {{ town_name }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Main Body Container -->
     <main class="main-content">

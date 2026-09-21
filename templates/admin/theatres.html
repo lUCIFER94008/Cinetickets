@@ -6,8 +6,8 @@
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
     <div>
-        <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-white);">Cinema Venues &amp; Complex Partners</h2>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Manage cinema locations, screen configurations, and seating capacities</p>
+        <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-white);">Cinema Venues &amp; Complex Partners ({{ theatres|length }})</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Manage cinema locations, screen configurations, addresses, and formats across Kerala</p>
     </div>
     <button onclick="openModal('add-theatre-modal')" class="btn-primary" style="padding: 0.6rem 1.25rem;">
         <i class="fa-solid fa-plus"></i> Add New Theatre
@@ -19,10 +19,10 @@
         <thead>
             <tr>
                 <th>Theatre Name</th>
-                <th>Location / City</th>
-                <th>Address</th>
+                <th>City &amp; Address</th>
                 <th>Screens</th>
-                <th>Capacity</th>
+                <th>Formats Available</th>
+                <th>Distance</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -33,16 +33,26 @@
                     <strong style="color: var(--text-white); font-size: 1rem;">{{ t.name }}</strong>
                 </td>
                 <td style="color: var(--text-muted);">
-                    <i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> {{ t.location }} ({{ t.city or 'Kochi' }})
+                    <div><strong style="color: var(--primary-red);"><i class="fa-solid fa-location-dot"></i> {{ t.city or 'Kochi' }}</strong></div>
+                    <div style="font-size: 0.82rem; max-width: 250px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{{ t.address }}</div>
                 </td>
-                <td style="color: var(--text-muted); font-size: 0.85rem; max-width: 250px;">
-                    {{ t.address }}
+                <td><span class="badge" style="background: rgba(59,130,246,0.15); color: #3B82F6;">{{ t.screens or 2 }} Screen(s)</span></td>
+                <td>
+                    <div style="display: flex; gap: 0.3rem; flex-wrap: wrap;">
+                        {% if t.formats %}
+                            {% for fmt in t.formats %}
+                            <span class="format-badge" style="font-size: 0.68rem;">{{ fmt }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="format-badge" style="font-size: 0.68rem;">2D</span>
+                            <span class="format-badge" style="font-size: 0.68rem;">3D</span>
+                        {% endif %}
+                    </div>
                 </td>
-                <td><span class="badge" style="background: rgba(59,130,246,0.15); color: #3B82F6;">{{ t.screens or 4 }} Screens</span></td>
-                <td><span style="font-weight: 700; color: var(--text-white);">{{ t.seating_capacity or 120 }} Seats</span></td>
+                <td><span style="font-weight: 600; color: var(--text-white); font-size: 0.85rem;">{{ t.distance or '2.5 km' }}</span></td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button onclick="openEditTheatreModal('{{ t.id or t._id }}', '{{ t.name|e }}', '{{ t.location|e }}', '{{ t.address|e }}', '{{ t.city|e }}', '{{ t.screens or 4 }}', '{{ t.seating_capacity or 120 }}')" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">Edit</button>
+                        <button onclick="openEditTheatreModal('{{ t.id or t._id }}', '{{ t.name|e }}', '{{ t.city|e }}', '{{ t.address|e }}', '{{ t.screens or 2 }}', '{{ t.distance or '2.5 km' }}', '{{ t.formats|join(', ') if t.formats else '2D, 3D' }}')" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">Edit</button>
                         <form action="{{ url_for('admin_bp.delete_theatre', theatre_id=t.id or t._id) }}" method="POST" onsubmit="return confirm('Delete theatre {{ t.name }} and all scheduled showtimes?');" style="display: inline;">
                             <button type="submit" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; color: #EF4444;" title="Delete Theatre"><i class="fa-solid fa-trash"></i></button>
                         </form>
@@ -68,32 +78,36 @@
 
         <form action="{{ url_for('admin_bp.add_theatre') }}" method="POST">
             <div class="form-group" style="margin-bottom: 0.8rem;">
-                <label class="form-label">Theatre Name</label>
+                <label class="form-label">Theatre Name *</label>
                 <input type="text" name="name" class="form-control" placeholder="e.g. PVR Cinemas, Lulu Mall" required>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
                 <div class="form-group">
-                    <label class="form-label">Location / Area</label>
-                    <input type="text" name="location" class="form-control" placeholder="Edappally" required>
+                    <label class="form-label">Assign to City / Town *</label>
+                    <select name="city" class="form-control" required style="background-color: var(--bg-input);">
+                        {% for c in cities %}
+                        <option value="{{ c.name }}">{{ c.name }} ({{ c.district or 'Kerala' }})</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">City</label>
-                    <input type="text" name="city" class="form-control" value="Kochi" required>
+                    <label class="form-label">Number of Screens</label>
+                    <input type="number" name="screens" class="form-control" value="2" min="1">
                 </div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
                 <div class="form-group">
-                    <label class="form-label">Number of Screens</label>
-                    <input type="number" name="screens" class="form-control" value="4" min="1">
+                    <label class="form-label">Distance string</label>
+                    <input type="text" name="distance" class="form-control" value="2.5 km">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Seating Capacity</label>
-                    <input type="number" name="seating_capacity" class="form-control" value="120" min="10">
+                    <label class="form-label">Formats (comma separated)</label>
+                    <input type="text" name="formats" class="form-control" value="2D, 3D, Dolby Atmos">
                 </div>
             </div>
             <div class="form-group" style="margin-bottom: 1.25rem;">
-                <label class="form-label">Full Address</label>
-                <textarea name="address" class="form-control" rows="2" placeholder="Street address, landmark, pin code..." required></textarea>
+                <label class="form-label">Full Street Address *</label>
+                <textarea name="address" class="form-control" rows="2" placeholder="Lulu International Shopping Mall, Edappally, Kochi, Kerala 682024" required></textarea>
             </div>
 
             <button type="submit" class="btn-primary" style="width: 100%; padding: 0.8rem;">Register Theatre</button>
@@ -116,22 +130,26 @@
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
                 <div class="form-group">
-                    <label class="form-label">Location</label>
-                    <input type="text" id="edit-t-location" name="location" class="form-control" required>
+                    <label class="form-label">City</label>
+                    <select id="edit-t-city" name="city" class="form-control" required style="background-color: var(--bg-input);">
+                        {% for c in cities %}
+                        <option value="{{ c.name }}">{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">City</label>
-                    <input type="text" id="edit-t-city" name="city" class="form-control" required>
+                    <label class="form-label">Screens</label>
+                    <input type="number" id="edit-t-screens" name="screens" class="form-control" min="1">
                 </div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
                 <div class="form-group">
-                    <label class="form-label">Screens</label>
-                    <input type="number" id="edit-t-screens" name="screens" class="form-control">
+                    <label class="form-label">Distance</label>
+                    <input type="text" id="edit-t-distance" name="distance" class="form-control">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Capacity</label>
-                    <input type="number" id="edit-t-capacity" name="seating_capacity" class="form-control">
+                    <label class="form-label">Formats (comma separated)</label>
+                    <input type="text" id="edit-t-formats" name="formats" class="form-control">
                 </div>
             </div>
             <div class="form-group" style="margin-bottom: 1.25rem;">
@@ -149,14 +167,14 @@
 <script>
 function openModal(id) { document.getElementById(id).style.display = 'flex'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-function openEditTheatreModal(id, name, location, address, city, screens, capacity) {
+function openEditTheatreModal(id, name, city, address, screens, distance, formats) {
     document.getElementById('edit-theatre-form').action = `/admin/theatres/edit/${id}`;
     document.getElementById('edit-t-name').value = name;
-    document.getElementById('edit-t-location').value = location;
-    document.getElementById('edit-t-address').value = address;
     document.getElementById('edit-t-city').value = city;
+    document.getElementById('edit-t-address').value = address;
     document.getElementById('edit-t-screens').value = screens;
-    document.getElementById('edit-t-capacity').value = capacity;
+    document.getElementById('edit-t-distance').value = distance;
+    document.getElementById('edit-t-formats').value = formats;
     openModal('edit-theatre-modal');
 }
 </script>
