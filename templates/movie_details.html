@@ -300,86 +300,132 @@ function toggleReviewModal() {
 </div>
 
 <!-- 6. Select Theatre & Showtime Section -->
-<div id="theatres-section">
-    <div class="section-header">
-        <div>
-            <h2 class="section-title">Select Theatre &amp; Showtime in {{ selected_city or 'Kochi' }}</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Showing theatres operating in {{ selected_city or 'Kochi' }}</p>
+<div id="theatres-section" style="scroll-margin-top: 100px;">
+    
+    <!-- Dynamic 7-Day Date Selector -->
+    <div class="date-selector-wrapper">
+        <div class="date-selector-header">
+            <div class="date-selector-title">
+                <i class="fa-solid fa-calendar-days" style="color: var(--primary-red);"></i>
+                Select Date
+            </div>
+            <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;" id="date-selected-summary">
+                Selected: {% for d in weekly_dates %}{% if d.date_str == selected_date %}{{ d.formatted }}{% endif %}{% endfor %}
+            </span>
+        </div>
+        <div class="date-strip" id="weeklyDateStrip">
+            {% for d in weekly_dates %}
+            <button type="button" class="date-pill-btn {% if d.date_str == selected_date %}active{% endif %}" data-date="{{ d.date_str }}" data-formatted="{{ d.formatted }}" data-full="{{ d.full_formatted }}">
+                <span class="date-day-name">{{ d.day_name }}</span>
+                <span class="date-day-num">{{ d.day_num }}</span>
+                <span class="date-month-name">{{ d.month_name }}</span>
+            </button>
+            {% endfor %}
         </div>
     </div>
 
-    {% if theatres and theatres|length > 0 %}
-        {% for theatre in theatres %}
-        <div class="theatre-card-enhanced">
-            <div class="theatre-card-header">
-                <div>
-                    <h3 class="theatre-name">{{ theatre.name }}</h3>
-                    <div class="theatre-address">
-                        <i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i>
-                        {{ theatre.address }}
-                        {% if theatre.distance %} • {{ theatre.distance }}{% endif %}
-                    </div>
-                    <div class="format-badges">
-                        <span class="format-badge" style="background: rgba(229,30,42,0.15); border-color: rgba(229,30,42,0.3); color: var(--primary-red);">
-                            <i class="fa-solid fa-tv" style="font-size: 0.65rem;"></i> {{ theatre.screens or 2 }} Screen(s)
-                        </span>
-                        {% if theatre.formats %}
-                            {% for fmt in theatre.formats %}
-                            <span class="format-badge">{{ fmt }}</span>
-                            {% endfor %}
-                        {% else %}
-                            <span class="format-badge">2D</span>
-                            <span class="format-badge">3D</span>
-                            <span class="format-badge">Dolby Atmos</span>
-                        {% endif %}
+    <!-- Section Header -->
+    <div class="section-header">
+        <div>
+            <h2 class="section-title">Theatres &amp; Showtimes in <span id="sectionCityName">{{ selected_city or 'Kochi' }}</span></h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;" id="sectionDateSubhead">
+                Showing shows for <strong style="color: var(--text-white);" id="displaySelectedDate">{% for d in weekly_dates %}{% if d.date_str == selected_date %}{{ d.full_formatted }}{% endif %}{% endfor %}</strong>
+            </p>
+        </div>
+    </div>
+
+    <!-- Theatres & Showtimes Container -->
+    <div id="theatresListContainer">
+        {% if theatres and theatres|length > 0 %}
+            {% set total_shows_found = [0] %}
+            {% for theatre in theatres %}
+            <div class="theatre-card-enhanced" data-theatre-id="{{ theatre.id or theatre._id }}">
+                <div class="theatre-card-header">
+                    <div>
+                        <h3 class="theatre-name">{{ theatre.name }}</h3>
+                        <div class="theatre-address">
+                            <i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i>
+                            {{ theatre.address }}
+                            {% if theatre.distance %} • {{ theatre.distance }}{% endif %}
+                        </div>
+                        <div class="format-badges">
+                            <span class="format-badge" style="background: rgba(229,30,42,0.15); border-color: rgba(229,30,42,0.3); color: var(--primary-red);">
+                                <i class="fa-solid fa-tv" style="font-size: 0.65rem;"></i> {{ theatre.screens or 2 }} Screen(s)
+                            </span>
+                            {% if theatre.formats %}
+                                {% for fmt in theatre.formats %}
+                                <span class="format-badge">{{ fmt }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="format-badge">2D</span>
+                                <span class="format-badge">3D</span>
+                                <span class="format-badge">Dolby Atmos</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Showtimes Slots -->
-            <div class="showtimes-row">
-                {% set found_show = false %}
-                {% for show in shows %}
-                    {% if (show.theatre_id == theatre.id or show.theatre_id == theatre._id) or (show.theatre and (show.theatre.id == theatre.id or show.theatre.id == theatre._id)) %}
-                        {% set found_show = true %}
-                        <a href="{{ url_for('booking_bp.seats_page', show_id=show.id or show._id) }}" class="showtime-pill-btn">
-                            <span class="showtime-pill-time">{{ show.time }}</span>
-                            <span class="showtime-pill-meta">{{ show.screen or 'Screen 1' }} • ₹{{ show.price or 220 }}</span>
+                <!-- Showtimes Slots -->
+                <div class="showtimes-row">
+                    {% set found_show = [false] %}
+                    {% for show in shows %}
+                        {% if (show.theatre_id == theatre.id or show.theatre_id == theatre._id) or (show.theatre and (show.theatre.id == theatre.id or show.theatre.id == theatre._id)) %}
+                            {% if found_show.append(true) %}{% endif %}
+                            {% if total_shows_found.append(1) %}{% endif %}
+
+                            {% set is_sold_out = show.status == 'sold_out' or show.available_seats <= 0 %}
+                            {% set is_filling = show.status == 'filling_fast' or (show.available_seats > 0 and show.available_seats <= 15) %}
+
+                            <a href="{% if not is_sold_out %}{{ url_for('booking_bp.seats_page', show_id=show.id or show._id, date=selected_date) }}{% else %}javascript:void(0);{% endif %}" 
+                               class="showtime-pill-btn {% if is_sold_out %}sold-out{% endif %}"
+                               title="{% if is_sold_out %}Sold Out{% else %}Book {{ show.time }}{% endif %}">
+                                <span class="showtime-pill-time">{{ show.time }}</span>
+                                <span class="showtime-pill-meta">{{ show.screen or 'Screen 1' }} • ₹{{ show.price or 220 }}</span>
+                                
+                                {% if is_sold_out %}
+                                    <span class="showtime-status-tag status-tag-sold-out">SOLD OUT</span>
+                                {% elif is_filling %}
+                                    <span class="showtime-status-tag status-tag-filling-fast">Only {{ show.available_seats }} left</span>
+                                {% endif %}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if not found_show[0] %}
+                        <!-- Fallback demo showtimes if no explicit database show match -->
+                        <a href="{{ url_for('booking_bp.seats_page', movie_id=movie.id or movie._id, theatre_id=theatre.id or theatre._id, showtime='10:00 AM', date=selected_date) }}" class="showtime-pill-btn">
+                            <span class="showtime-pill-time">10:00 AM</span>
+                            <span class="showtime-pill-meta">Screen 1 • ₹180</span>
+                        </a>
+                        <a href="{{ url_for('booking_bp.seats_page', movie_id=movie.id or movie._id, theatre_id=theatre.id or theatre._id, showtime='01:30 PM', date=selected_date) }}" class="showtime-pill-btn">
+                            <span class="showtime-pill-time">01:30 PM</span>
+                            <span class="showtime-pill-meta">Screen 1 • ₹220</span>
+                        </a>
+                        <a href="{{ url_for('booking_bp.seats_page', movie_id=movie.id or movie._id, theatre_id=theatre.id or theatre._id, showtime='05:00 PM', date=selected_date) }}" class="showtime-pill-btn">
+                            <span class="showtime-pill-time">05:00 PM</span>
+                            <span class="showtime-pill-meta">Screen 2 • ₹250</span>
+                        </a>
+                        <a href="{{ url_for('booking_bp.seats_page', movie_id=movie.id or movie._id, theatre_id=theatre.id or theatre._id, showtime='08:30 PM', date=selected_date) }}" class="showtime-pill-btn">
+                            <span class="showtime-pill-time">08:30 PM</span>
+                            <span class="showtime-pill-meta">Screen 1 • ₹280</span>
                         </a>
                     {% endif %}
-                {% endfor %}
-
-                {% if not found_show %}
-                    <!-- Default showtimes for this theatre -->
-                    <a href="{{ url_for('booking_bp.seats_page', movie_id=movie.id or movie._id, theatre_id=theatre.id or theatre._id, showtime='10:00 AM') }}" class="showtime-pill-btn">
-                        <span class="showtime-pill-time">10:00 AM</span>
-                        <span class="showtime-pill-meta">Screen 1 • ₹180</span>
-                    </a>
-                    <a href="{{ url_for('booking_bp.seats_page', movie_id=movie.id or movie._id, theatre_id=theatre.id or theatre._id, showtime='01:30 PM') }}" class="showtime-pill-btn">
-                        <span class="showtime-pill-time">01:30 PM</span>
-                        <span class="showtime-pill-meta">Screen 1 • ₹220</span>
-                    </a>
-                    <a href="{{ url_for('booking_bp.seats_page', movie_id=movie.id or movie._id, theatre_id=theatre.id or theatre._id, showtime='05:00 PM') }}" class="showtime-pill-btn">
-                        <span class="showtime-pill-time">05:00 PM</span>
-                        <span class="showtime-pill-meta">Screen 2 • ₹250</span>
-                    </a>
-                    <a href="{{ url_for('booking_bp.seats_page', movie_id=movie.id or movie._id, theatre_id=theatre.id or theatre._id, showtime='08:30 PM') }}" class="showtime-pill-btn">
-                        <span class="showtime-pill-time">08:30 PM</span>
-                        <span class="showtime-pill-meta">Screen 1 • ₹280</span>
-                    </a>
-                {% endif %}
+                </div>
             </div>
-        </div>
-        {% endfor %}
-    {% else %}
-        <div style="background-color: var(--bg-card); padding: 2.5rem; border-radius: var(--radius-xl); text-align: center; border: 1px dashed var(--border-color);">
-            <i class="fa-solid fa-film" style="font-size: 2.5rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
-            <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">No Theatres in {{ selected_city or 'Kochi' }} Showing {{ movie.title }}</h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.25rem;">Try selecting a different city from the top location picker in the navbar (e.g., Kochi, Thrissur, Kozhikode, Thiruvananthapuram).</p>
-            <button type="button" class="btn-primary" onclick="document.getElementById('openLocationModalBtn').click();" style="padding: 0.6rem 1.4rem;">
-                <i class="fa-solid fa-location-dot"></i> Change Location
-            </button>
-        </div>
-    {% endif %}
+            {% endfor %}
+        {% else %}
+            <!-- Empty State -->
+            <div style="background-color: var(--bg-card); padding: 3rem 2rem; border-radius: var(--radius-xl); text-align: center; border: 1px dashed var(--border-color);" id="emptyShowtimesState">
+                <i class="fa-solid fa-calendar-xmark" style="font-size: 2.8rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                <h3 style="font-size: 1.3rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--text-white);">No shows available for this date.</h3>
+                <p style="color: var(--text-muted); font-size: 0.92rem; margin-bottom: 1.5rem; max-width: 500px; margin-left: auto; margin-right: auto;">
+                    No showtimes currently scheduled for <strong style="color: var(--text-white);" id="emptyStateDate">{% for d in weekly_dates %}{% if d.date_str == selected_date %}{{ d.formatted }}{% endif %}{% endfor %}</strong> in {{ selected_city or 'Kochi' }}. Please try selecting another date or location.
+                </p>
+                <button type="button" class="btn-primary" onclick="selectNextAvailableDate()" style="padding: 0.7rem 1.6rem;">
+                    <i class="fa-solid fa-calendar-days"></i> View Other Dates
+                </button>
+            </div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

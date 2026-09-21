@@ -7,7 +7,7 @@
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
     <div>
         <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-white);">Scheduled Showtimes Across Kerala</h2>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Connect movies to cinema venues across Kerala cities, assign screens, dates, times, and ticket rates</p>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Connect movies to cinema venues across Kerala cities, assign screens, dates, start/end times, seats &amp; rates</p>
     </div>
     <button onclick="openModal('add-showtime-modal')" class="btn-primary" style="padding: 0.6rem 1.25rem;">
         <i class="fa-solid fa-plus"></i> Schedule New Showtime
@@ -23,7 +23,8 @@
                 <th>Screen &amp; Format</th>
                 <th>Date</th>
                 <th>Time Slot</th>
-                <th>Ticket Price</th>
+                <th>Price &amp; Seats</th>
+                <th>Status</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -42,11 +43,26 @@
                     <span class="format-badge" style="font-size: 0.65rem;">{{ s.format or '2D' }}</span>
                 </td>
                 <td style="color: var(--text-muted); font-size: 0.9rem;">{{ s.date }}</td>
-                <td><span style="color: var(--primary-red); font-weight: 700;">{{ s.time }}</span></td>
-                <td><span style="font-weight: 700; color: var(--text-white);">₹{{ s.price or 220 }}</span></td>
+                <td>
+                    <span style="color: var(--primary-red); font-weight: 700;">{{ s.time or s.start_time }}</span>
+                    {% if s.end_time %}<div style="font-size: 0.72rem; color: var(--text-muted);">ends {{ s.end_time }}</div>{% endif %}
+                </td>
+                <td>
+                    <span style="font-weight: 700; color: var(--text-white);">₹{{ s.price or 220 }}</span>
+                    <div style="font-size: 0.72rem; color: var(--text-muted);">{{ s.available_seats }}/{{ s.total_seats or 120 }} seats</div>
+                </td>
+                <td>
+                    {% if s.status == 'sold_out' or s.available_seats <= 0 %}
+                        <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.3);">SOLD OUT</span>
+                    {% elif s.status == 'filling_fast' or s.available_seats <= 15 %}
+                        <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #F59E0B; border: 1px solid rgba(245, 158, 11, 0.3);">Filling Fast</span>
+                    {% else %}
+                        <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3);">Available</span>
+                    {% endif %}
+                </td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
-                        <a href="{{ url_for('admin_bp.admin_seats', show_id=s.id or s._id) }}" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;"><i class="fa-solid fa-couch"></i> View Seats</a>
+                        <a href="{{ url_for('admin_bp.admin_seats', show_id=s.id or s._id) }}" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;"><i class="fa-solid fa-couch"></i> Seats</a>
                         <form action="{{ url_for('admin_bp.delete_showtime', show_id=s.id or s._id) }}" method="POST" onsubmit="return confirm('Delete this showtime slot and all seat records?');" style="display: inline;">
                             <button type="submit" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; color: #EF4444;" title="Delete Showtime"><i class="fa-solid fa-trash"></i></button>
                         </form>
@@ -55,7 +71,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No scheduled showtimes found.</td>
+                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">No scheduled showtimes found.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -72,7 +88,7 @@
 
         <form action="{{ url_for('admin_bp.add_showtime') }}" method="POST">
             <div class="form-group" style="margin-bottom: 0.8rem;">
-                <label class="form-label">Select Movie</label>
+                <label class="form-label">Select Movie *</label>
                 <select name="movie_id" class="form-control" style="background: var(--bg-surface); color: #fff;" required>
                     <option value="" disabled selected>-- Select Movie --</option>
                     {% for m in movies %}
@@ -82,7 +98,7 @@
             </div>
 
             <div class="form-group" style="margin-bottom: 0.8rem;">
-                <label class="form-label">Select Theatre Partner &amp; City</label>
+                <label class="form-label">Select Theatre Partner &amp; City *</label>
                 <select name="theatre_id" class="form-control" style="background: var(--bg-surface); color: #fff;" required>
                     <option value="" disabled selected>-- Select Theatre --</option>
                     {% for t in theatres %}
@@ -113,25 +129,41 @@
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1.25rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
                 <div class="form-group">
-                    <label class="form-label">Show Date</label>
+                    <label class="form-label">Show Date *</label>
                     <input type="date" name="date" class="form-control" required style="background: var(--bg-surface); color: #fff;">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Show Time Slot</label>
-                    <select name="time" class="form-control" style="background: var(--bg-surface); color: #fff;" required>
-                        <option value="10:00 AM">10:00 AM</option>
-                        <option value="01:30 PM">01:30 PM</option>
-                        <option value="05:00 PM">05:00 PM</option>
-                        <option value="08:30 PM">08:30 PM</option>
-                    </select>
+                    <label class="form-label">Start Time Slot *</label>
+                    <input type="text" name="start_time" class="form-control" placeholder="10:00 AM" value="10:00 AM" required>
                 </div>
             </div>
 
-            <div class="form-group" style="margin-bottom: 1.25rem;">
-                <label class="form-label">Base Ticket Price (₹)</label>
-                <input type="number" name="price" class="form-control" value="220" min="50" required>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label class="form-label">End Time</label>
+                    <input type="text" name="end_time" class="form-control" placeholder="12:45 PM" value="12:45 PM">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Base Ticket Price (₹) *</label>
+                    <input type="number" name="price" class="form-control" value="220" min="50" required>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1.25rem;">
+                <div class="form-group">
+                    <label class="form-label">Total Seating Capacity</label>
+                    <input type="number" name="total_seats" class="form-control" value="120" min="10">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Show Status</label>
+                    <select name="status" class="form-control" style="background: var(--bg-surface); color: #fff;">
+                        <option value="available">Available</option>
+                        <option value="filling_fast">Filling Fast</option>
+                        <option value="sold_out">Sold Out</option>
+                    </select>
+                </div>
             </div>
 
             <button type="submit" class="btn-primary" style="width: 100%; padding: 0.8rem;">Publish Showtime &amp; Initialize Seats</button>

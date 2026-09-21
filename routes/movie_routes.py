@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
 from services.movie_service import movie_service
 from services.show_service import show_service
@@ -33,11 +34,13 @@ def movies_page():
 @movie_bp.route('/movie/<movie_id>')
 def movie_details(movie_id):
     selected_city = _get_current_city()
+    selected_date = request.args.get('date') or datetime.now().strftime('%Y-%m-%d')
     movie = movie_service.get_movie_by_id(movie_id)
     if not movie:
         return render_template('error.html', error_message="Movie not found."), 404
 
-    shows = show_service.get_shows(movie_id=movie_id, city=selected_city)
+    weekly_dates = show_service.get_weekly_dates()
+    shows = show_service.get_shows(movie_id=movie_id, date_str=selected_date, city=selected_city)
     theatres = theatre_service.get_theatres(city=selected_city)
     cities = theatre_service.get_cities()
 
@@ -58,6 +61,8 @@ def movie_details(movie_id):
         shows=shows,
         theatres=theatres,
         cities=cities,
+        weekly_dates=weekly_dates,
+        selected_date=selected_date,
         selected_city=selected_city,
         reviews=reviews,
         review_stats=review_stats,
@@ -88,8 +93,10 @@ def add_movie_review(movie_id):
 def showtimes_page():
     movie_id = request.args.get('movie_id')
     selected_city = _get_current_city()
+    selected_date = request.args.get('date') or datetime.now().strftime('%Y-%m-%d')
     movie = movie_service.get_movie_by_id(movie_id) if movie_id else None
-    shows = show_service.get_shows(movie_id=movie_id, city=selected_city)
+    weekly_dates = show_service.get_weekly_dates()
+    shows = show_service.get_shows(movie_id=movie_id, date_str=selected_date, city=selected_city)
     theatres = theatre_service.get_theatres(city=selected_city)
     cities = theatre_service.get_cities()
     return render_template(
@@ -98,6 +105,8 @@ def showtimes_page():
         shows=shows,
         theatres=theatres,
         cities=cities,
+        weekly_dates=weekly_dates,
+        selected_date=selected_date,
         selected_city=selected_city
     )
 
@@ -142,14 +151,23 @@ def api_movie_reviews(movie_id):
     return jsonify({'success': True, 'message': message})
 
 @movie_bp.route('/api/shows', methods=['GET'])
+@movie_bp.route('/api/showtimes', methods=['GET'])
 def api_get_shows():
     movie_id = request.args.get('movie_id') or request.args.get('movieId')
     theatre_id = request.args.get('theatre_id') or request.args.get('theatreId')
-    date_str = request.args.get('date')
+    date_str = request.args.get('date') or datetime.now().strftime('%Y-%m-%d')
     city = request.args.get('city') or _get_current_city()
 
     shows = show_service.get_shows(movie_id=movie_id, theatre_id=theatre_id, date_str=date_str, city=city)
-    return jsonify({'success': True, 'city': city, 'shows': shows, 'count': len(shows)})
+    theatres = theatre_service.get_theatres(city=city)
+    return jsonify({
+        'success': True,
+        'city': city,
+        'date': date_str,
+        'shows': shows,
+        'theatres': theatres,
+        'count': len(shows)
+    })
 
 @movie_bp.route('/api/shows/<show_id>/seats', methods=['GET'])
 def api_get_show_seats(show_id):

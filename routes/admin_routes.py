@@ -242,10 +242,19 @@ def add_showtime():
     screen = data.get('screen', 'Screen 1')
     show_format = data.get('format', '2D')
     date_str = data.get('date')
-    time_str = data.get('time')
+    time_str = data.get('time') or data.get('start_time', '10:00 AM')
+    start_time = data.get('start_time') or time_str
+    end_time = data.get('end_time', '')
     price = data.get('price', 220)
+    total_seats = data.get('total_seats', 120)
+    status = data.get('status', 'available')
 
-    show = show_service.find_or_create_show(movie_id, theatre_id, time_str, date_str=date_str, screen=screen, show_format=show_format, price=price)
+    show = show_service.find_or_create_show(
+        movie_id, theatre_id, time_str, 
+        date_str=date_str, screen=screen, show_format=show_format, 
+        price=price, start_time=start_time, end_time=end_time, 
+        total_seats=total_seats, status=status
+    )
     if show:
         if request.is_json:
             return jsonify({'success': True, 'show': show, 'message': 'Showtime created successfully'})

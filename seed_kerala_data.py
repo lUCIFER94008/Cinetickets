@@ -700,7 +700,7 @@ def seed_kerala_data():
 
     print(f"✅ Seeded/Updated {len(theatres_seed)} realistic Kerala theatres.")
 
-    # 3. Seed Shows across major movies & theatres
+    # 3. Seed Shows across major movies & theatres for 7 FULL DAYS
     movies = list(db.movies.find({"status": "now_showing"}))
     theatres = list(db.theatres.find({"active": True}))
 
@@ -708,39 +708,89 @@ def seed_kerala_data():
         print("⚠️ No active now_showing movies found. Please run seed_database.py first.")
         return
 
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    tomorrow_str = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-    dates = [today_str, tomorrow_str]
-    sample_times = [
-        {"time": "10:00 AM", "price": 180, "screen": "Screen 1", "format": "2D"},
-        {"time": "01:30 PM", "price": 220, "screen": "Screen 1", "format": "3D"},
-        {"time": "05:00 PM", "price": 250, "screen": "Screen 2", "format": "Dolby Atmos"},
-        {"time": "08:30 PM", "price": 280, "screen": "Screen 1", "format": "4K Dolby Atmos"}
+    # Generate 7 consecutive days starting today
+    now = datetime.now()
+    dates = [(now + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)]
+
+    # Varied schedule templates per weekday type
+    weekday_slots = [
+        {"time": "10:00 AM", "start_time": "10:00 AM", "end_time": "12:45 PM", "price": 180, "screen": "Screen 1", "format": "2D"},
+        {"time": "01:30 PM", "start_time": "01:30 PM", "end_time": "04:15 PM", "price": 220, "screen": "Screen 1", "format": "3D"},
+        {"time": "05:00 PM", "start_time": "05:00 PM", "end_time": "07:45 PM", "price": 250, "screen": "Screen 2", "format": "Dolby Atmos"},
+        {"time": "08:30 PM", "start_time": "08:30 PM", "end_time": "11:15 PM", "price": 280, "screen": "Screen 1", "format": "4K Dolby Atmos"}
+    ]
+
+    weekend_slots = [
+        {"time": "09:30 AM", "start_time": "09:30 AM", "end_time": "12:15 PM", "price": 200, "screen": "Screen 1", "format": "2D"},
+        {"time": "12:45 PM", "start_time": "12:45 PM", "end_time": "03:30 PM", "price": 250, "screen": "Screen 2", "format": "3D"},
+        {"time": "04:15 PM", "start_time": "04:15 PM", "end_time": "07:00 PM", "price": 280, "screen": "Screen 1", "format": "IMAX"},
+        {"time": "07:45 PM", "start_time": "07:45 PM", "end_time": "10:30 PM", "price": 300, "screen": "Screen 1", "format": "Dolby Atmos"},
+        {"time": "10:45 PM", "start_time": "10:45 PM", "end_time": "01:30 AM", "price": 250, "screen": "Screen 2", "format": "4DX"}
     ]
 
     new_shows = []
-    for d in dates:
+    for day_idx, d in enumerate(dates):
+        # Determine day of week
+        d_obj = datetime.strptime(d, "%Y-%m-%d")
+        is_weekend = d_obj.weekday() in [5, 6] # Saturday or Sunday
+        slots_to_use = weekend_slots if is_weekend else weekday_slots
+
         for t in theatres:
             for m_idx, m in enumerate(movies[:3]): # top 3 movies
-                for slot in sample_times[(m_idx % 2): (m_idx % 2) + 3]:
+                # Select a subset of slots per movie/theatre combo
+                start_slot_offset = (m_idx + day_idx) % len(slots_to_use)
+                assigned_slots = slots_to_use[start_slot_offset: start_slot_offset + 3]
+                if not assigned_slots:
+                    assigned_slots = slots_to_use[:2]
+
+                for s_idx, slot in enumerate(assigned_slots):
                     existing_show = db.shows.find_one({
                         "movie_id": m["_id"],
                         "theatre_id": t["_id"],
                         "date": d,
                         "time": slot["time"]
                     })
+
+                    # Calculate demo available seats & status for testing filling fast / sold out
+                    if (day_idx + s_idx) % 9 == 0:
+                        available_seats = 8 # filling fast demo
+                        status = "filling_fast"
+                    elif (day_idx + s_idx) % 13 == 0:
+                        available_seats = 0 # sold out demo
+                        status = "sold_out"
+                    else:
+                        available_seats = 95
+                        status = "available"
+
                     if not existing_show:
                         new_shows.append({
                             "movie_id": m["_id"],
                             "theatre_id": t["_id"],
+                            "screen_id": slot["screen"],
+                            "screen": slot["screen"],
                             "date": d,
                             "time": slot["time"],
-                            "price": slot["price"],
-                            "screen": slot["screen"],
+                            "start_time": slot["start_time"],
+                            "end_time": slot["end_time"],
+                            "price": float(slot["price"]),
                             "format": slot["format"],
+                            "available_seats": available_seats,
+                            "total_seats": 120,
+                            "status": status,
                             "active": True,
                             "created_at": datetime.now(timezone.utc)
                         })
+                    else:
+                        # Update existing show with date, start_time, end_time, price, available_seats, status
+                        db.shows.update_one({"_id": existing_show["_id"]}, {"$set": {
+                            "start_time": slot["start_time"],
+                            "end_time": slot["end_time"],
+                            "available_seats": available_seats,
+                            "total_seats": 120,
+                            "status": status,
+                            "format": slot["format"],
+                            "price": float(slot["price"])
+                        }})
 
     if new_shows:
         db.shows.insert_many(new_shows)
@@ -748,8 +798,8 @@ def seed_kerala_data():
     else:
         shows_count = 0
 
-    print(f"✅ Seeded {shows_count} showtimes across Kerala theatres.")
-    print("🚀 Kerala Multi-City Location & Theatre Seeding Complete!")
+    print(f"✅ Seeded {shows_count} new showtimes across 7 days for Kerala theatres.")
+    print("🚀 Kerala Multi-City & 7-Day Showtime Seeding Complete!")
 
 if __name__ == '__main__':
     seed_kerala_data()

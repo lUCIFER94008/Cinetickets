@@ -785,3 +785,137 @@ a {
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+/* 7-Day Date Selector Strip */
+.date-selector-wrapper {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-card);
+}
+
+.date-selector-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.date-selector-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-white);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.date-strip {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-red) var(--bg-card);
+    -webkit-overflow-scrolling: touch;
+}
+
+.date-pill-btn {
+    flex: 0 0 auto;
+    width: 80px;
+    height: 85px;
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    text-decoration: none;
+    transition: var(--transition);
+    user-select: none;
+}
+
+.date-pill-btn:hover {
+    border-color: var(--primary-red);
+    background-color: rgba(229, 30, 42, 0.1);
+    transform: translateY(-2px);
+}
+
+.date-pill-btn.active {
+    background-color: var(--primary-red);
+    border-color: var(--primary-red);
+    box-shadow: 0 6px 18px rgba(229, 30, 42, 0.45);
+    transform: translateY(-2px);
+}
+
+.date-day-name {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.date-pill-btn.active .date-day-name {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.date-day-num {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--text-white);
+    line-height: 1.1;
+    margin: 2px 0;
+}
+
+.date-pill-btn.active .date-day-num {
+    color: #ffffff;
+}
+
+.date-month-name {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.date-pill-btn.active .date-month-name {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Availability Status Badges on Showtime Pills */
+.showtime-pill-btn.sold-out {
+    opacity: 0.45;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.showtime-pill-btn.sold-out .showtime-pill-time {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+
+.showtime-status-tag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    margin-top: 3px;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+}
+
+.status-tag-filling-fast {
+    background: rgba(245, 158, 11, 0.2);
+    color: #F59E0B;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.status-tag-sold-out {
+    background: rgba(239, 68, 68, 0.2);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}

@@ -1,10 +1,33 @@
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from services.mongodb_service import get_db
 from utils.db_helpers import to_object_id, serialize_doc
 from services.theatre_service import theatre_service
 
 class ShowService:
+    def get_weekly_dates(self, start_date=None):
+        if not start_date:
+            base = datetime.now()
+        else:
+            try:
+                base = datetime.strptime(start_date, "%Y-%m-%d")
+            except ValueError:
+                base = datetime.now()
+
+        dates = []
+        for i in range(7):
+            d = base + timedelta(days=i)
+            dates.append({
+                'date_str': d.strftime("%Y-%m-%d"),
+                'day_name': d.strftime("%a").upper(),
+                'day_num': d.strftime("%d"),
+                'month_name': d.strftime("%b").upper(),
+                'formatted': d.strftime("%a, %d %b"),
+                'full_formatted': d.strftime("%A, %d %B %Y"),
+                'is_today': i == 0
+            })
+        return dates
+
     def get_shows(self, movie_id=None, theatre_id=None, date_str=None, city=None):
         db = get_db()
         filter_query = {}
@@ -19,13 +42,11 @@ class ShowService:
             if t_oid:
                 filter_query['theatre_id'] = t_oid
         elif city:
-            # Filter by theatres located in this city
             city_theatres = theatre_service.get_theatres(city=city)
             city_t_ids = [to_object_id(t['id']) for t in city_theatres if to_object_id(t['id'])]
             if city_t_ids:
                 filter_query['theatre_id'] = {'$in': city_t_ids}
             else:
-                # No theatres in this city -> return empty shows list
                 return []
 
         if date_str:
@@ -45,9 +66,34 @@ class ShowService:
             s_serialized = serialize_doc(s)
             s_serialized['movie'] = movies_map.get(s.get('movie_id'))
             s_serialized['theatre'] = theatres_map.get(s.get('theatre_id'))
+
+            # Compute seat availability status dynamically
+            s_oid = s['_id']
+            total_seats = s.get('total_seats', 120)
+            booked_count = db.seats.count_documents({'show_id': s_oid, 'is_booked': True})
+            available_seats = s.get('available_seats', total_seats - booked_count)
+            if available_seats < 0:
+                available_seats = 0
+
+            status = s.get('status')
+            if not status or status == 'available':
+                if available_seats == 0:
+                    status = 'sold_out'
+                elif available_seats <= 15:
+                    status = 'filling_fast'
+                else:
+                    status = 'available'
+
+            s_serialized['total_seats'] = total_seats
+            s_serialized['available_seats'] = available_seats
+            s_serialized['status'] = status
+            s_serialized['start_time'] = s.get('start_time', s.get('time'))
+            s_serialized['end_time'] = s.get('end_time', '')
+            s_serialized['screen_id'] = s.get('screen_id', s.get('screen', 'Screen 1'))
+
             enriched.append(s_serialized)
 
-        # Additional safeguard: if city was passed, ensure enriched theatre is in target city
+        # Additional safeguard for city filter
         if city:
             city_lower = str(city).strip().lower()
             enriched = [
@@ -72,9 +118,20 @@ class ShowService:
         s_serialized = serialize_doc(show)
         s_serialized['movie'] = serialize_doc(movie)
         s_serialized['theatre'] = serialize_doc(theatre)
+        
+        # Calculate seat availability
+        total_seats = show.get('total_seats', 120)
+        booked_count = db.seats.count_documents({'show_id': s_oid, 'is_booked': True})
+        avail = show.get('available_seats', total_seats - booked_count)
+        s_serialized['available_seats'] = max(0, avail)
+        s_serialized['total_seats'] = total_seats
+        s_serialized['start_time'] = show.get('start_time', show.get('time'))
+        s_serialized['end_time'] = show.get('end_time', '')
+        s_serialized['screen_id'] = show.get('screen_id', show.get('screen', 'Screen 1'))
+
         return s_serialized
 
-    def find_or_create_show(self, movie_id, theatre_id, time_str, date_str=None, screen="Screen 1", show_format="2D", price=220):
+    def find_or_create_show(self, movie_id, theatre_id, time_str, date_str=None, screen="Screen 1", show_format="2D", price=220, start_time=None, end_time=None, total_seats=120, status="available"):
         db = get_db()
         m_oid = to_object_id(movie_id)
         t_oid = to_object_id(theatre_id)
@@ -99,11 +156,18 @@ class ShowService:
         new_show = {
             'movie_id': m_oid,
             'theatre_id': t_oid,
+            'screen_id': screen,
             'screen': screen,
             'date': date_str,
             'time': time_str,
+            'start_time': start_time or time_str,
+            'end_time': end_time or '',
             'format': show_format,
             'price': float(price),
+            'available_seats': int(total_seats),
+            'total_seats': int(total_seats),
+            'status': status,
+            'active': True,
             'created_at': datetime.now(timezone.utc)
         }
 

@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize Kerala City Location System
     initCityLocationSystem();
+
+    // Initialize 7-Day Weekly Date Selector
+    initWeeklyDateSelector();
 });
 
 function initCityLocationSystem() {
@@ -29,13 +32,11 @@ function initCityLocationSystem() {
     const cityButtons = document.querySelectorAll('.city-item-btn');
     const locationText = document.getElementById('current-location-text');
 
-    // Get current URL city param or stored city
     const urlParams = new URLSearchParams(window.location.search);
     const urlCity = urlParams.get('city');
 
     let currentCity = urlCity || localStorage.getItem('selectedCity') || getCookie('selected_city') || 'Kochi';
 
-    // Persist current city
     localStorage.setItem('selectedCity', currentCity);
     setCookie('selected_city', currentCity, 30);
 
@@ -43,7 +44,6 @@ function initCityLocationSystem() {
         locationText.innerText = currentCity;
     }
 
-    // Highlight selected city button
     cityButtons.forEach(btn => {
         const btnCity = btn.dataset.city;
         if (btnCity && btnCity.toLowerCase() === currentCity.toLowerCase()) {
@@ -53,7 +53,6 @@ function initCityLocationSystem() {
         }
     });
 
-    // Modal open/close controls
     if (openBtn && modalOverlay) {
         openBtn.addEventListener('click', () => {
             modalOverlay.classList.add('active');
@@ -77,7 +76,6 @@ function initCityLocationSystem() {
         });
     }
 
-    // Live search filtering
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase().trim();
@@ -92,7 +90,6 @@ function initCityLocationSystem() {
         });
     }
 
-    // City Selection Handler
     cityButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             const chosenCity = btn.dataset.city;
@@ -107,12 +104,46 @@ function initCityLocationSystem() {
 
             modalOverlay.classList.remove('active');
 
-            // Refresh or update page with selected city query param
             const currentUrl = new URL(window.location.href);
             currentUrl.searchParams.set('city', chosenCity);
             window.location.href = currentUrl.toString();
         });
     });
+}
+
+function initWeeklyDateSelector() {
+    const dateButtons = document.querySelectorAll('.date-pill-btn');
+    if (!dateButtons.length) return;
+
+    dateButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetDate = btn.dataset.date;
+            const fullDateStr = btn.dataset.full;
+            const formattedStr = btn.dataset.formatted;
+
+            if (!targetDate) return;
+
+            // Highlight active date pill
+            dateButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update URL query param without full page refresh
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('date', targetDate);
+            window.history.pushState({}, '', currentUrl.toString());
+
+            // Reload page with date query param for complete accuracy
+            window.location.href = currentUrl.toString();
+        });
+    });
+}
+
+function selectNextAvailableDate() {
+    const dateButtons = document.querySelectorAll('.date-pill-btn');
+    if (dateButtons.length > 1) {
+        dateButtons[1].click();
+    }
 }
 
 function setCookie(name, value, days = 30) {
