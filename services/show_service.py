@@ -28,7 +28,7 @@ class ShowService:
             })
         return dates
 
-    def get_shows(self, movie_id=None, theatre_id=None, date_str=None, city=None):
+    def get_shows(self, movie_id=None, theatre_id=None, date_str=None, city=None, status=None, search=None):
         db = get_db()
         filter_query = {}
 
@@ -53,13 +53,23 @@ class ShowService:
             filter_query['date'] = date_str
 
         shows = list(db.shows.find(filter_query).sort('time', 1))
+        if not shows:
+            return []
 
         # Pre-fetch movies and theatres to prevent N+1 queries
         movie_ids = list({s.get('movie_id') for s in shows if s.get('movie_id')})
         theatre_ids = list({s.get('theatre_id') for s in shows if s.get('theatre_id')})
+        show_ids = [s['_id'] for s in shows]
 
         movies_map = {m['_id']: serialize_doc(m) for m in db.movies.find({'_id': {'$in': movie_ids}})}
         theatres_map = {t['_id']: serialize_doc(t) for t in db.theatres.find({'_id': {'$in': theatre_ids}})}
+
+        # Bulk seat counts query
+        seat_agg = list(db.seats.aggregate([
+            {'$match': {'show_id': {'$in': show_ids}, 'is_booked': True}},
+            {'$group': {'_id': '$show_id', 'count': {'$sum': 1}}}
+        ]))
+        booked_counts_map = {item['_id']: item['count'] for item in seat_agg}
 
         enriched = []
         for s in shows:
@@ -67,10 +77,9 @@ class ShowService:
             s_serialized['movie'] = movies_map.get(s.get('movie_id'))
             s_serialized['theatre'] = theatres_map.get(s.get('theatre_id'))
 
-            # Compute seat availability status dynamically
             s_oid = s['_id']
-            total_seats = s.get('total_seats', 120)
-            booked_count = db.seats.count_documents({'show_id': s_oid, 'is_booked': True})
+            total_seats = int(s.get('total_seats', 120))
+            booked_count = booked_counts_map.get(s_oid, 0)
             available_seats = s.get('available_seats', total_seats - booked_count)
             if available_seats < 0:
                 available_seats = 0
@@ -89,16 +98,31 @@ class ShowService:
             s_serialized['status'] = status
             s_serialized['start_time'] = s.get('start_time', s.get('time'))
             s_serialized['end_time'] = s.get('end_time', '')
+            s_serialized['screen'] = s.get('screen', 'Screen 1')
             s_serialized['screen_id'] = s.get('screen_id', s.get('screen', 'Screen 1'))
 
             enriched.append(s_serialized)
 
-        # Additional safeguard for city filter
         if city:
             city_lower = str(city).strip().lower()
             enriched = [
                 s for s in enriched 
                 if s.get('theatre') and str(s['theatre'].get('city', '')).strip().lower() == city_lower
+            ]
+
+        if status:
+            st_lower = str(status).strip().lower()
+            enriched = [s for s in enriched if str(s.get('status', '')).strip().lower() == st_lower]
+
+        if search:
+            q = str(search).strip().lower()
+            enriched = [
+                s for s in enriched
+                if q in str(s.get('movie', {}).get('title', '')).lower()
+                or q in str(s.get('theatre', {}).get('name', '')).lower()
+                or q in str(s.get('screen', '')).lower()
+                or q in str(s.get('date', '')).lower()
+                or q in str(s.get('start_time', '')).lower()
             ]
 
         return enriched

@@ -1,76 +1,265 @@
 {% extends 'admin/base_admin.html' %}
 
-{% block title %}Seat Availability - CineTickets Admin{% endblock %}
-{% block header_title %}Cinema Seat Grid Inspection{% endblock %}
+{% block title %}Seat Management - CineTickets Admin{% endblock %}
+{% block header_title %}Cinema Seat Grid Inspection &amp; Lock Control{% endblock %}
+
+{% block extra_css %}
+<style>
+.seat-admin {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    border: 1px solid var(--border-color);
+}
+.seat-admin.available {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10B981;
+    border-color: rgba(16, 185, 129, 0.4);
+}
+.seat-admin.available:hover {
+    background: rgba(16, 185, 129, 0.25);
+    transform: scale(1.08);
+}
+.seat-admin.booked {
+    background: #EF4444;
+    color: #ffffff;
+    border-color: #EF4444;
+    cursor: not-allowed;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}
+.seat-admin.blocked {
+    background: #F59E0B;
+    color: #000000;
+    border-color: #F59E0B;
+    font-weight: 800;
+}
+.seat-admin.blocked:hover {
+    transform: scale(1.08);
+}
+.screen-bar {
+    width: 80%;
+    margin: 1.5rem auto 2.5rem;
+    height: 12px;
+    background: linear-gradient(90deg, rgba(229,30,42,0.2) 0%, rgba(229,30,42,0.8) 50%, rgba(229,30,42,0.2) 100%);
+    border-radius: 50% 50% 0 0 / 12px 12px 0 0;
+    box-shadow: 0 6px 20px rgba(229, 30, 42, 0.4);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    padding-top: 16px;
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+<!-- Header -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
     <div>
-        <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-white);">Showtime Seat Availability</h2>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Inspect real-time seat occupancy and locked seats for any scheduled showtime</p>
+        <h2 style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-white);">SEAT MANAGEMENT</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Inspect real-time seat reservations and toggle seat locks for any scheduled showtime</p>
     </div>
 </div>
 
-<!-- Showtime Filter Dropdown -->
-<div style="background: var(--bg-card); padding: 1.25rem 1.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); margin-bottom: 2rem; display: flex; align-items: center; gap: 1rem;">
-    <label style="font-weight: 700; color: var(--text-white); white-space: nowrap;">Select Showtime:</label>
-    <select id="admin-show-selector" class="form-control" style="background: var(--bg-surface); color: #fff; flex: 1;" onchange="loadShowSeats(this.value)">
-        {% for s in shows %}
-        <option value="{{ s.id or s._id }}" {% if selected_show and (selected_show.id == s.id or selected_show._id == s._id) %}selected{% endif %}>
-            {{ s.movie.title if s.movie else 'Movie' }} • {{ s.theatre.name if s.theatre else 'Cinema' }} ({{ s.screen }}) — {{ s.date }} @ {{ s.time }}
-        </option>
-        {% endfor %}
-    </select>
+<!-- Cascading Filters Bar -->
+<div style="background: #16181F; padding: 1.25rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); margin-bottom: 1.75rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.85rem; align-items: flex-end;">
+    <div>
+        <label class="form-label" style="font-size: 0.78rem;">City</label>
+        <select id="seatFilterCity" onchange="applySeatFilters()" class="form-control" style="background: var(--bg-surface); color: #fff; font-size: 0.85rem;">
+            <option value="">All Cities</option>
+            {% for c in cities %}
+            <option value="{{ c.name }}" {% if selected_city == c.name %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label" style="font-size: 0.78rem;">Theatre</label>
+        <select id="seatFilterTheatre" onchange="applySeatFilters()" class="form-control" style="background: var(--bg-surface); color: #fff; font-size: 0.85rem;">
+            <option value="">All Theatres</option>
+            {% for t in theatres %}
+            <option value="{{ t.id or t._id }}" {% if selected_theatre == (t.id or t._id) %}selected{% endif %}>{{ t.name }} ({{ t.city }})</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label" style="font-size: 0.78rem;">Movie</label>
+        <select id="seatFilterMovie" onchange="applySeatFilters()" class="form-control" style="background: var(--bg-surface); color: #fff; font-size: 0.85rem;">
+            <option value="">All Movies</option>
+            {% for m in movies %}
+            <option value="{{ m.id or m._id }}" {% if selected_movie == (m.id or m._id) %}selected{% endif %}>{{ m.title }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="form-label" style="font-size: 0.78rem;">Show Date</label>
+        <input type="date" id="seatFilterDate" onchange="applySeatFilters()" class="form-control" value="{{ selected_date or '' }}" style="background: var(--bg-surface); color: #fff; font-size: 0.85rem;">
+    </div>
+    <div style="grid-column: span 2;">
+        <label class="form-label" style="font-size: 0.78rem;">Select Showtime Slot *</label>
+        <select id="seatShowSelector" onchange="onShowSelectChange(this.value)" class="form-control" style="background: var(--bg-surface); color: #fff; font-size: 0.85rem; font-weight: 700;">
+            {% for s in shows %}
+            <option value="{{ s.id or s._id }}" {% if selected_show and (selected_show.id == s.id or selected_show._id == s._id) %}selected{% endif %}>
+                {{ s.movie.title if s.movie else 'Movie' }} • {{ s.theatre.name if s.theatre else 'Cinema' }} ({{ s.screen }}) — {{ s.date }} @ {{ s.time or s.start_time }}
+            </option>
+            {% else %}
+            <option value="">No showtimes available for selected filters</option>
+            {% endfor %}
+        </select>
+    </div>
 </div>
 
 {% if selected_show %}
-<!-- Selected Showtime Meta -->
-<div style="background: var(--bg-card); padding: 1.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-card);">
-    <div>
-        <span class="badge" style="background: rgba(229,30,42,0.2); color: var(--primary-red); border: 1px solid var(--primary-red); margin-bottom: 0.4rem;">{{ selected_show.screen or 'Screen 1' }}</span>
-        <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-white); margin-bottom: 0.3rem;">{{ selected_show.movie.title if selected_show.movie else 'Movie' }}</h3>
-        <p style="font-size: 0.88rem; color: var(--text-muted);"><i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> {{ selected_show.theatre.name if selected_show.theatre else 'Cinema' }} • {{ selected_show.date }} @ {{ selected_show.time }}</p>
+<!-- Selected Showtime Meta & Stats -->
+<div style="background: #16181F; padding: 1.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); margin-bottom: 1.75rem;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <span class="badge" style="background: rgba(229,30,42,0.18); color: var(--primary-red); border: 1px solid rgba(229,30,42,0.4); font-weight: 700;">
+                {{ selected_show.screen or 'Screen 1' }} • {{ selected_show.format or '2D' }}
+            </span>
+            <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-white); margin: 0.3rem 0 0.2rem;">
+                {{ selected_show.movie.title if selected_show.movie else 'Movie Ticket' }}
+            </h3>
+            <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0;">
+                <i class="fa-solid fa-location-dot" style="color: var(--primary-red);"></i> 
+                <strong>{{ selected_show.theatre.name if selected_show.theatre else 'Cinema' }}</strong> 
+                ({{ selected_show.theatre.city if selected_show.theatre else 'Kochi' }}) 
+                • <strong style="color: var(--text-white);">{{ selected_show.date }} @ {{ selected_show.time or selected_show.start_time }}</strong>
+            </p>
+        </div>
+
+        <!-- Legend -->
+        <div style="display: flex; gap: 1rem; align-items: center; background: rgba(255,255,255,0.03); padding: 0.6rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-muted);">
+                <div style="width: 16px; height: 16px; border-radius: 4px; background: rgba(16,185,129,0.15); border: 1px solid #10B981;"></div> Available
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-muted);">
+                <div style="width: 16px; height: 16px; border-radius: 4px; background: #EF4444;"></div> Booked
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-muted);">
+                <div style="width: 16px; height: 16px; border-radius: 4px; background: #F59E0B;"></div> Blocked / Held
+            </div>
+        </div>
     </div>
-    
-    <!-- Seat Legend -->
-    <div class="seat-legend" style="margin: 0;">
-        <div class="legend-item"><div class="seat-box available"></div> Available</div>
-        <div class="legend-item"><div class="seat-box booked"></div> Booked</div>
+
+    <!-- Seat Statistics Metrics -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.85rem;" id="seatStatsGrid">
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.75rem 1rem; text-align: center;">
+            <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Total Seats</div>
+            <div style="font-size: 1.3rem; font-weight: 900; color: var(--text-white);" id="statTotalSeats">{{ stats.total or 120 }}</div>
+        </div>
+        <div style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: var(--radius-md); padding: 0.75rem 1rem; text-align: center;">
+            <div style="font-size: 0.72rem; color: #10B981; font-weight: 700; text-transform: uppercase;">Available</div>
+            <div style="font-size: 1.3rem; font-weight: 900; color: #10B981;" id="statAvailableSeats">{{ stats.available }}</div>
+        </div>
+        <div style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: var(--radius-md); padding: 0.75rem 1rem; text-align: center;">
+            <div style="font-size: 0.72rem; color: #EF4444; font-weight: 700; text-transform: uppercase;">Booked</div>
+            <div style="font-size: 1.3rem; font-weight: 900; color: #EF4444;" id="statBookedSeats">{{ stats.booked }}</div>
+        </div>
+        <div style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); border-radius: var(--radius-md); padding: 0.75rem 1rem; text-align: center;">
+            <div style="font-size: 0.72rem; color: #F59E0B; font-weight: 700; text-transform: uppercase;">Blocked / Held</div>
+            <div style="font-size: 1.3rem; font-weight: 900; color: #F59E0B;" id="statBlockedSeats">{{ stats.blocked + stats.held }}</div>
+        </div>
     </div>
 </div>
 
 <!-- Cinema Screen Indicator -->
-<div class="screen-indicator">SCREEN THIS WAY</div>
+<div class="screen-bar">SCREEN THIS WAY</div>
 
-<!-- Cinema Seat Grid -->
-<div class="seats-grid-container" style="background: var(--bg-card); padding: 2rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); box-shadow: var(--shadow-card);">
+<!-- Cinema Seat Grid Container -->
+<div style="background: #16181F; padding: 2.25rem 1.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); overflow-x: auto; box-shadow: var(--shadow-card);" id="seatGridWrapper">
     {% set rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] %}
-    {% for r in rows %}
-    <div class="seat-row">
-        <span class="row-label">{{ r }}</span>
-        {% for s in seats %}
-            {% if s.row == r %}
-                <div class="seat {% if s.status == 'booked' %}booked{% endif %}" 
-                     data-seat-number="{{ s.seat_number }}" 
-                     title="Seat {{ s.seat_number }} (₹{{ s.price }}) - Status: {{ s.status|upper }}">
-                    {{ s.number }}
-                </div>
-            {% endif %}
+    <div style="display: flex; flex-direction: column; gap: 0.6rem; align-items: center; min-width: 600px;">
+        {% for r in rows %}
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <span style="width: 24px; text-align: center; font-weight: 800; color: var(--text-muted); font-size: 0.85rem;">{{ r }}</span>
+            <div style="display: flex; gap: 0.5rem;">
+                {% for s in seats %}
+                    {% if s.row == r %}
+                        {% set status_class = (s.status or 'available')|lower %}
+                        {% if s.is_booked %}{% set status_class = 'booked' %}{% endif %}
+                        <div onclick="handleAdminSeatClick('{{ selected_show.id or selected_show._id }}', '{{ s.seat_number }}', '{{ status_class }}')"
+                             class="seat-admin {{ status_class }}"
+                             data-seat-number="{{ s.seat_number }}"
+                             title="Seat {{ s.seat_number }} (₹{{ s.price }}) - {{ status_class|upper }}">
+                            {{ s.number }}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <span style="width: 24px; text-align: center; font-weight: 800; color: var(--text-muted); font-size: 0.85rem;">{{ r }}</span>
+        </div>
         {% endfor %}
-        <span class="row-label">{{ r }}</span>
     </div>
-    {% endfor %}
 </div>
 {% else %}
-<p style="color: var(--text-muted);">No showtime selected.</p>
+<div style="background: #16181F; padding: 4rem 2rem; border-radius: var(--radius-xl); text-align: center; border: 1px dashed var(--border-color);">
+    <i class="fa-solid fa-couch" style="font-size: 3rem; color: var(--border-color); margin-bottom: 1rem; display: block;"></i>
+    <h3 style="font-size: 1.3rem; font-weight: 800; color: var(--text-white); margin-bottom: 0.5rem;">No Showtime Selected</h3>
+    <p style="color: var(--text-muted); max-width: 450px; margin: 0 auto;">Select a showtime from the top filter bar to inspect seat availability and toggle seat locks.</p>
+</div>
 {% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function loadShowSeats(showId) {
+function onShowSelectChange(showId) {
     if (showId) {
-        window.location.href = `/admin/seats?show_id=${showId}`;
+        const url = new URL(window.location);
+        url.searchParams.set('show_id', showId);
+        window.location.href = url.toString();
+    }
+}
+
+function applySeatFilters() {
+    const city = document.getElementById('seatFilterCity').value;
+    const theatreId = document.getElementById('seatFilterTheatre').value;
+    const movieId = document.getElementById('seatFilterMovie').value;
+    const date = document.getElementById('seatFilterDate').value;
+
+    const params = new URLSearchParams();
+    if (city) params.set('city', city);
+    if (theatreId) params.set('theatre_id', theatreId);
+    if (movieId) params.set('movie_id', movieId);
+    if (date) params.set('date', date);
+
+    window.location.href = `/admin/seats?` + params.toString();
+}
+
+async function handleAdminSeatClick(showId, seatNumber, currentStatus) {
+    if (currentStatus === 'booked') {
+        alert(`Seat ${seatNumber} has an active customer booking and cannot be blocked or modified.`);
+        return;
+    }
+
+    const actionText = currentStatus === 'blocked' ? 'UNBLOCK' : 'BLOCK';
+    if (!confirm(`Are you sure you want to ${actionText} seat ${seatNumber}?`)) {
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/admin/seats/toggle-block', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({show_id: showId, seat_number: seatNumber})
+        });
+        const json = await res.json();
+        if (json.success) {
+            window.location.reload();
+        } else {
+            alert(json.message || 'Failed to update seat status.');
+        }
+    } catch (err) {
+        console.error('Seat block toggle error:', err);
+        alert('Server connection error. Please try again.');
     }
 }
 </script>

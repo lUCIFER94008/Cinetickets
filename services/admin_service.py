@@ -305,9 +305,65 @@ class AdminService:
             return False, "Invalid showtime ID."
 
         db = get_db()
+        booking_count = db.bookings.count_documents({
+            '$or': [{'show_id': s_oid}, {'show_id': str(show_id)}]
+        })
+        if booking_count > 0:
+            db.shows.update_one({'_id': s_oid}, {'$set': {'status': 'sold_out', 'available_seats': 0, 'active': False}})
+            return False, f"This showtime has {booking_count} active booking(s) and cannot be deleted. It has been marked as unavailable."
+
         db.seats.delete_many({'show_id': s_oid})
         db.shows.delete_one({'_id': s_oid})
         return True, "Showtime deleted successfully."
+
+    def update_showtime(self, show_id, data):
+        s_oid = to_object_id(show_id)
+        if not s_oid:
+            return False, "Invalid showtime ID."
+
+        db = get_db()
+        show = db.shows.find_one({'_id': s_oid})
+        if not show:
+            return False, "Showtime not found."
+
+        updates = {}
+        if 'movie_id' in data and data['movie_id']:
+            m_oid = to_object_id(data['movie_id'])
+            if m_oid: updates['movie_id'] = m_oid
+        if 'theatre_id' in data and data['theatre_id']:
+            t_oid = to_object_id(data['theatre_id'])
+            if t_oid: updates['theatre_id'] = t_oid
+        if 'screen' in data:
+            updates['screen'] = data['screen']
+            updates['screen_id'] = data['screen']
+        if 'format' in data:
+            updates['format'] = data['format']
+        if 'date' in data and data['date']:
+            updates['date'] = data['date']
+        if 'time' in data or 'start_time' in data:
+            time_val = data.get('time') or data.get('start_time')
+            updates['time'] = time_val
+            updates['start_time'] = time_val
+        if 'end_time' in data:
+            updates['end_time'] = data['end_time']
+        if 'price' in data:
+            try:
+                updates['price'] = float(data['price'])
+            except (ValueError, TypeError):
+                pass
+        if 'total_seats' in data:
+            try:
+                updates['total_seats'] = int(data['total_seats'])
+            except (ValueError, TypeError):
+                pass
+        if 'status' in data:
+            updates['status'] = data['status']
+
+        if updates:
+            db.shows.update_one({'_id': s_oid}, {'$set': updates})
+
+        from services.show_service import show_service
+        return True, "Showtime updated successfully."
 
     # Booking & Payment Management
     def normalize_booking(self, b):

@@ -118,4 +118,51 @@ class SeatService:
 
         return True, "Seats successfully locked."
 
+    def toggle_block_seat(self, show_id, seat_number):
+        s_oid = to_object_id(show_id)
+        if not s_oid:
+            return False, "Invalid showtime ID."
+
+        db = get_db()
+        seat = db.seats.find_one({'show_id': s_oid, 'seat_number': seat_number})
+        if not seat:
+            # Fallback if seat_number matches number/row
+            seats = list(db.seats.find({'show_id': s_oid}))
+            seat = next((s for s in seats if s.get('seat_number') == seat_number), None)
+        if not seat:
+            return False, f"Seat '{seat_number}' not found."
+
+        current_status = (seat.get('status') or 'available').lower()
+        if current_status == 'booked' or seat.get('is_booked'):
+            return False, f"Seat {seat_number} has an active booking and cannot be blocked or modified."
+
+        new_status = 'blocked' if current_status == 'available' else 'available'
+        db.seats.update_one(
+            {'_id': seat['_id']},
+            {'$set': {'status': new_status}}
+        )
+
+        # Update showtime available_seats count in db.shows
+        all_seats = list(db.seats.find({'show_id': s_oid}))
+        avail_count = sum(1 for s in all_seats if (s.get('status') or 'available').lower() == 'available')
+        db.shows.update_one({'_id': s_oid}, {'$set': {'available_seats': avail_count}})
+
+        return True, f"Seat {seat_number} status updated to '{new_status.upper()}'."
+
+    def get_seat_stats(self, show_id):
+        seats = self.get_seats_for_show(show_id)
+        total = len(seats)
+        available = sum(1 for s in seats if (s.get('status') or 'available').lower() == 'available')
+        booked = sum(1 for s in seats if (s.get('status') or '').lower() == 'booked' or s.get('is_booked'))
+        held = sum(1 for s in seats if (s.get('status') or '').lower() == 'held')
+        blocked = sum(1 for s in seats if (s.get('status') or '').lower() == 'blocked')
+
+        return {
+            'total': total,
+            'available': available,
+            'booked': booked,
+            'held': held,
+            'blocked': blocked
+        }
+
 seat_service = SeatService()

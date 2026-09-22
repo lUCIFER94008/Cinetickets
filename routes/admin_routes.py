@@ -227,13 +227,56 @@ def delete_theatre(theatre_id):
 @admin_bp.route('/admin/showtimes')
 @admin_required
 def admin_showtimes():
-    shows = show_service.get_shows()
+    city = request.args.get('city')
+    theatre_id = request.args.get('theatre_id')
+    movie_id = request.args.get('movie_id')
+    date_str = request.args.get('date')
+    status = request.args.get('status')
+    search = request.args.get('search')
+
+    shows = show_service.get_shows(
+        movie_id=movie_id,
+        theatre_id=theatre_id,
+        date_str=date_str,
+        city=city,
+        status=status,
+        search=search
+    )
     movies = admin_service.get_all_movies()
     theatres = theatre_service.get_theatres(active_only=False)
     cities = theatre_service.get_cities()
-    return render_template('admin/showtimes.html', shows=shows, movies=movies, theatres=theatres, cities=cities)
+    filters = {
+        'city': city or '',
+        'theatre_id': theatre_id or '',
+        'movie_id': movie_id or '',
+        'date': date_str or '',
+        'status': status or '',
+        'search': search or ''
+    }
+    return render_template('admin/showtimes.html', shows=shows, movies=movies, theatres=theatres, cities=cities, filters=filters)
+
+@admin_bp.route('/api/admin/showtimes', methods=['GET'])
+@admin_required
+def api_admin_showtimes():
+    city = request.args.get('city')
+    theatre_id = request.args.get('theatre_id')
+    movie_id = request.args.get('movie_id')
+    date_str = request.args.get('date')
+    status = request.args.get('status')
+    search = request.args.get('search')
+
+    shows = show_service.get_shows(
+        movie_id=movie_id,
+        theatre_id=theatre_id,
+        date_str=date_str,
+        city=city,
+        status=status,
+        search=search
+    )
+    return jsonify({'success': True, 'count': len(shows), 'data': shows})
 
 @admin_bp.route('/admin/showtimes/add', methods=['POST'])
+@admin_bp.route('/api/admin/showtimes', methods=['POST'])
 @admin_required
 def add_showtime():
     data = request.form.to_dict() if request.form else (request.get_json() or {})
@@ -256,20 +299,33 @@ def add_showtime():
         total_seats=total_seats, status=status
     )
     if show:
-        if request.is_json:
+        if request.is_json or request.path.startswith('/api/'):
             return jsonify({'success': True, 'show': show, 'message': 'Showtime created successfully'})
         flash('Showtime scheduled successfully!', 'success')
     else:
-        if request.is_json:
+        if request.is_json or request.path.startswith('/api/'):
             return jsonify({'success': False, 'message': 'Failed to create showtime'}), 400
         flash('Failed to schedule showtime.', 'danger')
     return redirect(url_for('admin_bp.admin_showtimes'))
 
+@admin_bp.route('/admin/showtimes/edit/<show_id>', methods=['POST'])
+@admin_bp.route('/api/admin/showtimes/<show_id>', methods=['PUT', 'POST'])
+@admin_required
+def edit_showtime(show_id):
+    data = request.form.to_dict() if request.form else (request.get_json() or {})
+    success, result = admin_service.update_showtime(show_id, data)
+    if request.is_json or request.path.startswith('/api/'):
+        status_code = 200 if success else 400
+        return jsonify({'success': success, 'message': result if isinstance(result, str) else 'Showtime updated', 'data': result}), status_code
+    flash(result if isinstance(result, str) else 'Showtime updated successfully', 'success' if success else 'danger')
+    return redirect(url_for('admin_bp.admin_showtimes'))
+
 @admin_bp.route('/admin/showtimes/delete/<show_id>', methods=['POST'])
+@admin_bp.route('/api/admin/showtimes/<show_id>', methods=['DELETE'])
 @admin_required
 def delete_showtime(show_id):
     success, msg = admin_service.delete_showtime(show_id)
-    if request.is_json:
+    if request.is_json or request.path.startswith('/api/'):
         return jsonify({'success': success, 'message': msg})
     flash(msg, 'success' if success else 'danger')
     return redirect(url_for('admin_bp.admin_showtimes'))
@@ -318,7 +374,68 @@ def admin_payments():
 @admin_required
 def admin_seats():
     show_id = request.args.get('show_id')
-    shows = show_service.get_shows()
-    selected_show = show_service.get_show_by_id(show_id) if show_id else (shows[0] if shows else None)
+    city = request.args.get('city')
+    theatre_id = request.args.get('theatre_id')
+    movie_id = request.args.get('movie_id')
+    date_str = request.args.get('date')
+
+    shows = show_service.get_shows(movie_id=movie_id, theatre_id=theatre_id, date_str=date_str, city=city)
+    selected_show = None
+    if show_id:
+        selected_show = show_service.get_show_by_id(show_id)
+    if not selected_show and shows:
+        selected_show = shows[0]
+
     seats = seat_service.get_seats_for_show(selected_show['id']) if selected_show else []
-    return render_template('admin/seats.html', shows=shows, selected_show=selected_show, seats=seats)
+    stats = seat_service.get_seat_stats(selected_show['id']) if selected_show else {'total': 0, 'available': 0, 'booked': 0, 'held': 0, 'blocked': 0}
+    
+    movies = admin_service.get_all_movies()
+    theatres = theatre_service.get_theatres(active_only=False)
+    cities = theatre_service.get_cities()
+    
+    filters = {
+        'city': city or '',
+        'theatre_id': theatre_id or '',
+        'movie_id': movie_id or '',
+        'date': date_str or '',
+        'show_id': selected_show['id'] if selected_show else ''
+    }
+
+    return render_template(
+        'admin/seats.html', 
+        shows=shows, 
+        selected_show=selected_show, 
+        seats=seats, 
+        stats=stats,
+        movies=movies,
+        theatres=theatres,
+        cities=cities,
+        filters=filters
+    )
+
+@admin_bp.route('/api/admin/seats', methods=['GET'])
+@admin_required
+def api_admin_seats():
+    show_id = request.args.get('show_id') or request.args.get('showtime_id')
+    if not show_id:
+        return jsonify({'success': False, 'message': 'show_id is required'}), 400
+    
+    seats = seat_service.get_seats_for_show(show_id)
+    stats = seat_service.get_seat_stats(show_id)
+    return jsonify({'success': True, 'show_id': show_id, 'stats': stats, 'seats': seats})
+
+@admin_bp.route('/api/admin/seats/toggle-block', methods=['POST'])
+@admin_bp.route('/api/admin/seats/<seat_id>', methods=['PUT'])
+@admin_required
+def api_toggle_block_seat(seat_id=None):
+    data = request.get_json() or request.form.to_dict() or {}
+    show_id = data.get('show_id') or data.get('showtime_id')
+    seat_number = data.get('seat_number') or seat_id
+
+    if not show_id or not seat_number:
+        return jsonify({'success': False, 'message': 'show_id and seat_number are required'}), 400
+
+    success, msg = seat_service.toggle_block_seat(show_id, seat_number)
+    stats = seat_service.get_seat_stats(show_id) if success else None
+    status_code = 200 if success else 400
+    return jsonify({'success': success, 'message': msg, 'stats': stats}), status_code
