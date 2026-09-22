@@ -59,7 +59,7 @@
                 </td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button onclick="openEditMovieModal('{{ m.id or m._id }}', '{{ m.title|e }}', '{{ m.poster_url|e }}', '{{ m.banner_url|e }}', '{{ m.language|e }}', '{{ m.duration|e }}', '{{ m.rating }}', '{{ m.certificate|e }}', '{{ m.status|e }}')" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">Edit</button>
+                        <button onclick="openEditMovieModal('{{ m.id or m._id }}', '{{ m.title|e }}', '{{ m.poster_url|e }}', '{{ m.banner_url|e }}', '{{ m.language|e }}', '{{ m.duration|e }}', '{{ m.rating }}', '{{ m.certificate|e }}', '{{ m.status|e }}', '{{ m.trailer_url|e }}')" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">Edit</button>
                         <form action="{{ url_for('admin_bp.delete_movie', movie_id=m.id or m._id) }}" method="POST" onsubmit="return confirm('Delete movie {{ m.title }} and all associated showtimes?');" style="display: inline;">
                             <button type="submit" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; color: #EF4444;" title="Delete Movie"><i class="fa-solid fa-trash"></i></button>
                         </form>
@@ -77,7 +77,7 @@
 
 <!-- Add Movie Modal -->
 <div id="add-movie-modal" class="admin-modal-overlay">
-    <div class="admin-modal">
+    <div class="admin-modal" style="max-height: 90vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
             <h3 style="font-size: 1.2rem; font-weight: 800; margin: 0;">Add New Movie</h3>
             <button onclick="closeModal('add-movie-modal')" style="background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer;">&times;</button>
@@ -98,6 +98,13 @@
                     <input type="url" name="banner_url" class="form-control" placeholder="https://...">
                 </div>
             </div>
+            
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label class="form-label">Official Trailer URL (YouTube)</label>
+                <input type="url" id="add-trailer-url" name="trailer_url" class="form-control" placeholder="https://www.youtube.com/watch?v=..." oninput="updateTrailerPreview('add-trailer-url', 'add-trailer-preview')">
+                <div id="add-trailer-preview" style="margin-top: 0.5rem;"></div>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
                 <div class="form-group">
                     <label class="form-label">Language</label>
@@ -146,7 +153,7 @@
 
 <!-- Edit Movie Modal -->
 <div id="edit-movie-modal" class="admin-modal-overlay">
-    <div class="admin-modal">
+    <div class="admin-modal" style="max-height: 90vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
             <h3 style="font-size: 1.2rem; font-weight: 800; margin: 0;">Edit Movie Details</h3>
             <button onclick="closeModal('edit-movie-modal')" style="background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer;">&times;</button>
@@ -167,6 +174,13 @@
                     <input type="url" id="edit-banner" name="banner_url" class="form-control">
                 </div>
             </div>
+            
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label class="form-label">Official Trailer URL (YouTube)</label>
+                <input type="url" id="edit-trailer-url" name="trailer_url" class="form-control" placeholder="https://www.youtube.com/watch?v=..." oninput="updateTrailerPreview('edit-trailer-url', 'edit-trailer-preview')">
+                <div id="edit-trailer-preview" style="margin-top: 0.5rem;"></div>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem;">
                 <div class="form-group">
                     <label class="form-label">Language</label>
@@ -206,7 +220,39 @@ function openModal(id) {
 function closeModal(id) {
     document.getElementById(id).style.display = 'none';
 }
-function openEditMovieModal(id, title, poster, banner, language, duration, rating, certificate, status) {
+function extractYouTubeId(url) {
+    if (!url) return null;
+    url = url.trim();
+    if (url.length === 11 && /^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
+    const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : null;
+}
+function updateTrailerPreview(inputId, previewId) {
+    const input = document.getElementById(inputId);
+    const container = document.getElementById(previewId);
+    if (!input || !container) return;
+
+    const val = input.value.trim();
+    if (!val) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const yId = extractYouTubeId(val);
+    if (yId) {
+        container.innerHTML = `
+            <div style="border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background: #000; position: relative; aspect-ratio: 16/9; max-height: 160px;">
+                <iframe src="https://www.youtube.com/embed/${yId}" style="width: 100%; height: 100%; border: none;" allowfullscreen></iframe>
+            </div>
+            <span style="font-size: 0.75rem; color: #10B981; margin-top: 0.3rem; display: block;"><i class="fa-solid fa-circle-check"></i> Valid YouTube Trailer URL</span>
+        `;
+    } else {
+        container.innerHTML = `
+            <span style="font-size: 0.78rem; color: #EF4444; display: block;"><i class="fa-solid fa-triangle-exclamation"></i> Please enter a valid YouTube URL (e.g. https://www.youtube.com/watch?v=...)</span>
+        `;
+    }
+}
+function openEditMovieModal(id, title, poster, banner, language, duration, rating, certificate, status, trailerUrl) {
     document.getElementById('edit-movie-form').action = `/admin/movies/edit/${id}`;
     document.getElementById('edit-title').value = title;
     document.getElementById('edit-poster').value = poster;
@@ -215,6 +261,8 @@ function openEditMovieModal(id, title, poster, banner, language, duration, ratin
     document.getElementById('edit-duration').value = duration;
     document.getElementById('edit-rating').value = rating;
     document.getElementById('edit-status').value = status;
+    document.getElementById('edit-trailer-url').value = trailerUrl || '';
+    updateTrailerPreview('edit-trailer-url', 'edit-trailer-preview');
     openModal('edit-movie-modal');
 }
 </script>

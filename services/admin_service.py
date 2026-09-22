@@ -86,7 +86,8 @@ class AdminService:
     def get_all_movies(self):
         db = get_db()
         movies = list(db.movies.find().sort('created_at', -1))
-        return serialize_doc(movies)
+        from services.movie_service import movie_service
+        return movie_service._enrich_movie(serialize_doc(movies))
 
     def add_movie(self, data):
         db = get_db()
@@ -97,6 +98,11 @@ class AdminService:
         genre = data.get('genre', [])
         if isinstance(genre, str):
             genre = [g.strip() for g in genre.split(',') if g.strip()]
+
+        from utils.youtube_helpers import get_youtube_embed_url, extract_youtube_id
+        trailer_raw = (data.get('trailer_url') or data.get('trailer') or '').strip()
+        embed_url = get_youtube_embed_url(trailer_raw) if trailer_raw else None
+        video_id = extract_youtube_id(trailer_raw) if trailer_raw else None
 
         movie_doc = {
             'title': title,
@@ -112,12 +118,16 @@ class AdminService:
             'release_date': data.get('release_date') or datetime.now().strftime('%Y-%m-%d'),
             'cast': data.get('cast', []),
             'director': data.get('director', ''),
+            'trailer_url': trailer_raw,
+            'youtube_embed_url': embed_url,
+            'youtube_id': video_id,
             'created_at': datetime.now(timezone.utc)
         }
 
         res = db.movies.insert_one(movie_doc)
         movie_doc['_id'] = res.inserted_id
-        return True, serialize_doc(movie_doc)
+        from services.movie_service import movie_service
+        return True, movie_service._enrich_movie(serialize_doc(movie_doc))
 
     def update_movie(self, movie_id, data):
         m_oid = to_object_id(movie_id)
@@ -157,12 +167,19 @@ class AdminService:
             updates['status'] = data['status']
         if 'release_date' in data:
             updates['release_date'] = data['release_date']
+        if 'trailer_url' in data or 'trailer' in data:
+            from utils.youtube_helpers import get_youtube_embed_url, extract_youtube_id
+            t_url = (data.get('trailer_url') or data.get('trailer') or '').strip()
+            updates['trailer_url'] = t_url
+            updates['youtube_embed_url'] = get_youtube_embed_url(t_url) if t_url else None
+            updates['youtube_id'] = extract_youtube_id(t_url) if t_url else None
 
         if updates:
             db.movies.update_one({'_id': m_oid}, {'$set': updates})
 
         updated = db.movies.find_one({'_id': m_oid})
-        return True, serialize_doc(updated)
+        from services.movie_service import movie_service
+        return True, movie_service._enrich_movie(serialize_doc(updated))
 
     def delete_movie(self, movie_id):
         m_oid = to_object_id(movie_id)

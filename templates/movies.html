@@ -52,9 +52,16 @@
                 <h3 class="card-title">{{ movie.title }}</h3>
                 <p class="card-meta">{{ movie.certificate }} • {{ movie.language }} • {{ movie.genre|join(', ') if movie.genre is iterable and movie.genre is not string else movie.genre }}</p>
             </div>
-            <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}" class="btn-primary" style="width: 100%; font-size: 0.85rem; padding: 0.5rem; text-align: center;">
-                {% if movie.status == 'now_showing' %}Book Tickets{% else %}View Details{% endif %}
-            </a>
+            <div style="display: flex; gap: 0.5rem; width: 100%;">
+                {% if movie.youtube_embed_url %}
+                <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}#trailer-section" class="btn-secondary" style="padding: 0.5rem 0.75rem; font-size: 0.85rem; display: inline-flex; align-items: center; justify-content: center;" title="Watch Trailer">
+                    <i class="fa-solid fa-circle-play" style="color: var(--primary-red);"></i>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}" class="btn-primary" style="flex: 1; font-size: 0.85rem; padding: 0.5rem; text-align: center;">
+                    {% if movie.status == 'now_showing' %}Book Tickets{% else %}View Details{% endif %}
+                </a>
+            </div>
         </div>
     </div>
     {% else %}

@@ -1,8 +1,25 @@
 from datetime import datetime, timezone
 from services.mongodb_service import get_db
 from utils.db_helpers import to_object_id, serialize_doc
+from utils.youtube_helpers import get_youtube_embed_url, extract_youtube_id
 
 class MovieService:
+    def _enrich_movie(self, movie):
+        if not movie:
+            return movie
+        if isinstance(movie, list):
+            return [self._enrich_movie(m) for m in movie]
+        if isinstance(movie, dict):
+            trailer = movie.get('trailer_url') or movie.get('trailer') or ''
+            movie['trailer_url'] = trailer
+            if trailer:
+                movie['youtube_embed_url'] = get_youtube_embed_url(trailer)
+                movie['youtube_id'] = extract_youtube_id(trailer)
+            else:
+                movie['youtube_embed_url'] = None
+                movie['youtube_id'] = None
+        return movie
+
     def get_movies(self, status=None, genre=None, search=None, sort_by=None):
         db = get_db()
         filter_query = {}
@@ -28,7 +45,7 @@ class MovieService:
             cursor = cursor.sort('release_date', -1)
 
         movies = list(cursor)
-        return serialize_doc(movies)
+        return self._enrich_movie(serialize_doc(movies))
 
     def get_movie_by_id(self, movie_id):
         m_oid = to_object_id(movie_id)
@@ -36,13 +53,13 @@ class MovieService:
             return None
         db = get_db()
         movie = db.movies.find_one({'_id': m_oid})
-        return serialize_doc(movie)
+        return self._enrich_movie(serialize_doc(movie))
 
     def create_movie(self, data):
         db = get_db()
         res = db.movies.insert_one(data)
         data['_id'] = res.inserted_id
-        return serialize_doc(data)
+        return self._enrich_movie(serialize_doc(data))
 
     def get_reviews(self, movie_id):
         m_oid = to_object_id(movie_id)

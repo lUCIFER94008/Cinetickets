@@ -33,9 +33,16 @@
                 <span>{{ hero.language }}</span>
             </div>
             <p class="hero-desc">{{ hero.description or hero.short_description }}</p>
-            <a href="{{ url_for('movie_bp.movie_details', movie_id=hero.id or hero._id) }}" class="btn-primary" style="padding: 0.8rem 1.8rem; font-size: 1rem;">
-                <i class="fa-solid fa-ticket"></i> Book Now
-            </a>
+            <div style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
+                {% if hero.youtube_embed_url %}
+                <button onclick="openTrailerModal('{{ hero.title|e }}', '{{ hero.youtube_embed_url }}')" class="btn-secondary" style="padding: 0.8rem 1.5rem; font-size: 1rem; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                    <i class="fa-solid fa-circle-play" style="color: var(--primary-red);"></i> Watch Trailer
+                </button>
+                {% endif %}
+                <a href="{{ url_for('movie_bp.movie_details', movie_id=hero.id or hero._id) }}" class="btn-primary" style="padding: 0.8rem 1.8rem; font-size: 1rem;">
+                    <i class="fa-solid fa-ticket"></i> Book Now
+                </a>
+            </div>
         </div>
     </div>
 </section>
@@ -62,7 +69,14 @@
                 <h3 class="card-title">{{ movie.title }}</h3>
                 <p class="card-meta">{{ movie.certificate }} • {{ movie.language }} • {{ movie.genre|join(', ') if movie.genre is iterable and movie.genre is not string else movie.genre }}</p>
             </div>
-            <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}" class="btn-primary" style="width: 100%; font-size: 0.85rem; padding: 0.5rem; text-align: center;">Book Tickets</a>
+            <div style="display: flex; gap: 0.5rem; width: 100%;">
+                {% if movie.youtube_embed_url %}
+                <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}#trailer-section" class="btn-secondary" style="padding: 0.5rem 0.75rem; font-size: 0.85rem; display: inline-flex; align-items: center; justify-content: center;" title="Watch Trailer">
+                    <i class="fa-solid fa-circle-play" style="color: var(--primary-red);"></i>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}" class="btn-primary" style="flex: 1; font-size: 0.85rem; padding: 0.5rem; text-align: center;">Book Tickets</a>
+            </div>
         </div>
     </div>
     {% else %}
@@ -88,13 +102,55 @@
                 <h3 class="card-title">{{ movie.title }}</h3>
                 <p class="card-meta">{{ movie.certificate }} • {{ movie.language }} • {{ movie.genre|join(', ') if movie.genre is iterable and movie.genre is not string else movie.genre }}</p>
             </div>
-            <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}" class="btn-secondary" style="width: 100%; font-size: 0.85rem; padding: 0.5rem; text-align: center;">View Details</a>
+            <div style="display: flex; gap: 0.5rem; width: 100%;">
+                {% if movie.youtube_embed_url %}
+                <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}#trailer-section" class="btn-secondary" style="padding: 0.5rem 0.75rem; font-size: 0.85rem; display: inline-flex; align-items: center; justify-content: center;" title="Watch Trailer">
+                    <i class="fa-solid fa-circle-play" style="color: var(--primary-red);"></i>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('movie_bp.movie_details', movie_id=movie.id or movie._id) }}" class="btn-secondary" style="flex: 1; font-size: 0.85rem; padding: 0.5rem; text-align: center;">View Details</a>
+            </div>
         </div>
     </div>
     {% else %}
     <p style="color: var(--text-muted);">No upcoming movies found.</p>
     {% endfor %}
 </div>
+
+<!-- Trailer Modal Container -->
+<div id="homeTrailerModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); backdrop-filter: blur(8px); z-index: 3000; align-items: center; justify-content: center; padding: 1.5rem;">
+    <div style="background: #16181F; max-width: 900px; width: 100%; border-radius: var(--radius-xl); border: 1px solid var(--border-color); box-shadow: 0 16px 40px rgba(0,0,0,0.8); overflow: hidden; position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color);">
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-white); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-circle-play" style="color: var(--primary-red);"></i> <span id="modalTrailerTitle">Official Trailer</span>
+            </h3>
+            <button onclick="closeTrailerModal()" style="background: none; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer;">&times;</button>
+        </div>
+        <div style="position: relative; aspect-ratio: 16 / 9; width: 100%;">
+            <iframe id="homeTrailerIframe" src="" style="width: 100%; height: 100%; border: none; display: block;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+        <div style="padding: 0.8rem 1.5rem; text-align: right; background: #111319; border-top: 1px solid var(--border-color);">
+            <button onclick="closeTrailerModal()" class="btn-secondary" style="padding: 0.4rem 1.2rem; font-size: 0.85rem;">CLOSE</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openTrailerModal(title, embedUrl) {
+    document.getElementById('modalTrailerTitle').innerText = title + " - Official Trailer";
+    document.getElementById('homeTrailerIframe').src = embedUrl + "?autoplay=1";
+    const modal = document.getElementById('homeTrailerModal');
+    modal.style.display = 'flex';
+}
+function closeTrailerModal() {
+    const iframe = document.getElementById('homeTrailerIframe');
+    iframe.src = "";
+    document.getElementById('homeTrailerModal').style.display = 'none';
+}
+window.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeTrailerModal();
+});
+</script>
 
 <!-- Cinema Theatres in Selected City Section -->
 <div class="section-header" style="margin-top: 3rem;">
